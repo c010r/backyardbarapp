@@ -1,0 +1,40 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}{% if instance %}Editar{% else %}Nueva{% endif %} Mesa{% endblock %}
+{% block page_title %}{% if instance %}Editar mesa{% else %}Nueva mesa{% endif %}{% endblock %}
+{% block nav_tables %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>{% if instance %}Editar: {{ instance }}{% else %}Nueva mesa{% endif %}</h2>
+  <a href="{% url 'menu:panel_tables' %}" class="btn btn-outline">← Volver</a>
+</div>
+
+<div class="card" style="max-width:420px;">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Número de mesa *</label>
+        {{ form.number }}
+        {% if form.number.errors %}<div class="form-errors">{{ form.number.errors }}</div>{% endif %}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre/Alias</label>
+        {{ form.name }}
+      </div>
+      <div class="form-group span2">
+        <label class="form-label">Estado</label>
+        <div class="form-check-row">
+          {{ form.is_active }} <span style="font-size:0.85rem;">Mesa activa</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:22px;display:flex;gap:10px;">
+      <button type="submit" class="btn btn-primary">
+        {% if instance %}Guardar cambios{% else %}Crear mesa{% endif %}
+      </button>
+      <a href="{% url 'menu:panel_tables' %}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

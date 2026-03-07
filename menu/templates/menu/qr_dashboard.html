@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard QR - {{ config.bar_name }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: #0f0f1a;
+      color: #e8e8f0;
+      padding: 30px 20px;
+      min-height: 100vh;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 {
+      font-size: 1.8rem;
+      color: #f5a623;
+      margin-bottom: 6px;
+    }
+    .breadcrumb {
+      font-size: 0.82rem;
+      color: #888;
+      margin-bottom: 28px;
+    }
+    .breadcrumb a { color: #f5a623; text-decoration: none; }
+
+    .config-card {
+      background: #1a1a2e;
+      border: 1px solid rgba(245,166,35,0.2);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+    .config-card h2 { font-size: 1rem; color: #f5a623; margin-bottom: 12px; }
+    .form-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .form-group { flex: 1; min-width: 200px; }
+    label { font-size: 0.82rem; color: #888; display: block; margin-bottom: 6px; }
+    input[type=text] {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0f0f1a;
+      border: 1px solid rgba(245,166,35,0.3);
+      border-radius: 8px;
+      color: #e8e8f0;
+      font-size: 0.9rem;
+    }
+    input[type=text]:focus { outline: none; border-color: #f5a623; }
+    .btn {
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-primary { background: #f5a623; color: #1a1a2e; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid rgba(245,166,35,0.4);
+      color: #f5a623;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-outline:hover { background: rgba(245,166,35,0.1); }
+
+    .info-box {
+      background: rgba(245,166,35,0.08);
+      border: 1px solid rgba(245,166,35,0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.82rem;
+      color: #bbb;
+      margin-bottom: 24px;
+    }
+    .info-box strong { color: #f5a623; }
+
+    .tables-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .table-card {
+      background: #1a1a2e;
+      border: 1px solid rgba(245,166,35,0.2);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .table-card h3 { font-size: 0.9rem; color: #f5a623; margin-bottom: 12px; }
+    .table-card img {
+      width: 150px;
+      height: 150px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      background: white;
+    }
+    .table-card .no-qr {
+      width: 150px;
+      height: 150px;
+      border-radius: 8px;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      font-size: 0.78rem;
+      margin: 0 auto 12px;
+    }
+    .table-card .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .table-card a {
+      font-size: 0.78rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+    }
+    .url-display {
+      font-size: 0.7rem;
+      color: #666;
+      word-break: break-all;
+      margin-bottom: 10px;
+      background: #0f0f1a;
+      padding: 6px 8px;
+      border-radius: 6px;
+    }
+    .messages {
+      margin-bottom: 20px;
+    }
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      background: rgba(82, 196, 26, 0.15);
+      border: 1px solid rgba(82, 196, 26, 0.3);
+      color: #73d13d;
+    }
+    .empty-tables {
+      text-align: center;
+      padding: 40px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Dashboard de QR Codes</h1>
+  <div class="breadcrumb">
+    <a href="/admin/">Admin</a> › QR Dashboard
+  </div>
+
+  {% if messages %}
+    <div class="messages">
+      {% for msg in messages %}
+        <div class="message">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="config-card">
+    <h2>Configurar URL base</h2>
+    <p style="font-size:0.82rem; color:#888; margin-bottom:14px;">
+      Ingresá la IP o dominio donde corre el servidor. Esta URL se incrustará en todos los QR.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group">
+          <label for="base_url">URL base</label>
+          <input type="text" id="base_url" name="base_url"
+                 value="{{ config.base_url }}"
+                 placeholder="http://192.168.1.10:8000" />
+        </div>
+        <button type="submit" class="btn btn-primary">
+          Regenerar todos los QR
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="info-box">
+    <strong>Tip:</strong> Si el servidor corre en tu red local, usá la IP de tu computadora
+    (ej: <strong>http://192.168.1.x:8000</strong>) para que los celulares de los clientes puedan acceder.
+    Podés crear mesas desde el
+    <a href="/admin/menu/table/add/" style="color:#f5a623">panel de administración</a>.
+  </div>
+
+  {% if tables %}
+    <div class="tables-grid">
+      {% for table in tables %}
+        <div class="table-card">
+          <h3>{{ table }}</h3>
+          <div class="url-display">{{ config.base_url }}/menu/{{ table.number }}/</div>
+          {% if table.qr_code %}
+            <img src="{{ table.qr_code.url }}" alt="QR {{ table }}" />
+          {% else %}
+            <div class="no-qr">Sin QR generado</div>
+          {% endif %}
+          <div class="actions">
+            <a href="{% url 'menu:generate_qr' table.pk %}" class="btn btn-outline">
+              Regenerar QR
+            </a>
+            {% if table.qr_code %}
+              <a href="{{ table.qr_code.url }}" download class="btn btn-outline">
+                Descargar PNG
+              </a>
+            {% endif %}
+            <a href="{% url 'menu:menu_table' table.number %}" target="_blank"
+               class="btn btn-outline">
+              Ver menú
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-tables">
+      <p style="font-size:2rem; margin-bottom:12px;">🪑</p>
+      <p>No hay mesas creadas aún.</p>
+      <br>
+      <a href="/admin/menu/table/add/" class="btn btn-primary">Crear primera mesa</a>
+    </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

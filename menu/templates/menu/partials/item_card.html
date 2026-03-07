@@ -1,0 +1,29 @@
+<div class="menu-item">
+  {% if item.image %}
+    <img src="{{ item.image.url }}" alt="{{ item.name }}" class="menu-item-img" loading="lazy" />
+  {% else %}
+    <div class="menu-item-img-placeholder">{{ item.category.icon }}</div>
+  {% endif %}
+
+  <div class="menu-item-info">
+    <div class="menu-item-name">
+      {{ item.name }}
+      {% if show_badge and item.is_featured %}
+        <span class="badge-featured">Destacado</span>
+      {% endif %}
+    </div>
+    {% if item.description %}
+      <div class="menu-item-desc">{{ item.description }}</div>
+    {% endif %}
+    <div class="menu-item-footer">
+      <span class="menu-item-price">${{ item.price }}</span>
+      {% if item.get_tags_list %}
+        <div class="tags">
+          {% for tag in item.get_tags_list %}
+            <span class="tag">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>

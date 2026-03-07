@@ -1,0 +1,116 @@
+from django.db import models
+from django.utils.text import slugify
+import qrcode
+import io
+import os
+from django.core.files.base import ContentFile
+from django.conf import settings
+
+
+class Category(models.Model):
+    name = models.CharField('Nombre', max_length=100)
+    description = models.TextField('Descripción', blank=True)
+    icon = models.CharField('Icono (emoji)', max_length=10, blank=True, default='🍺')
+    order = models.PositiveIntegerField('Orden', default=0)
+    is_active = models.BooleanField('Activa', default=True)
+
+    class Meta:
+        verbose_name = 'Categoría'
+        verbose_name_plural = 'Categorías'
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class MenuItem(models.Model):
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE,
+        related_name='items', verbose_name='Categoría'
+    )
+    name = models.CharField('Nombre', max_length=150)
+    description = models.TextField('Descripción', blank=True)
+    price = models.DecimalField('Precio', max_digits=8, decimal_places=2)
+    image = models.ImageField('Imagen', upload_to='menu_items/', blank=True, null=True)
+    is_available = models.BooleanField('Disponible', default=True)
+    is_featured = models.BooleanField('Destacado', default=False)
+    order = models.PositiveIntegerField('Orden', default=0)
+    tags = models.CharField(
+        'Etiquetas', max_length=200, blank=True,
+        help_text='Ej: vegano, sin gluten, picante (separadas por coma)'
+    )
+
+    class Meta:
+        verbose_name = 'Item del menú'
+        verbose_name_plural = 'Items del menú'
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return f'{self.name} - ${self.price}'
+
+    def get_tags_list(self):
+        if self.tags:
+            return [t.strip() for t in self.tags.split(',') if t.strip()]
+        return []
+
+
+class Table(models.Model):
+    number = models.PositiveIntegerField('Número de mesa', unique=True)
+    name = models.CharField('Nombre/Alias', max_length=50, blank=True,
+                            help_text='Ej: Terraza, Barra, VIP')
+    qr_code = models.ImageField('Código QR', upload_to='qr_codes/', blank=True, null=True)
+    is_active = models.BooleanField('Activa', default=True)
+
+    class Meta:
+        verbose_name = 'Mesa'
+        verbose_name_plural = 'Mesas'
+        ordering = ['number']
+
+    def __str__(self):
+        if self.name:
+            return f'Mesa {self.number} - {self.name}'
+        return f'Mesa {self.number}'
+
+    def get_display_name(self):
+        return self.name if self.name else f'Mesa {self.number}'
+
+    def generate_qr(self, base_url):
+        menu_url = f'{base_url}/menu/{self.number}/'
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(menu_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color='#1a1a2e', back_color='white')
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        filename = f'qr_mesa_{self.number}.png'
+        self.qr_code.save(filename, ContentFile(buffer.getvalue()), save=True)
+
+
+class SiteConfig(models.Model):
+    bar_name = models.CharField('Nombre del bar', max_length=100, default='Backyard Bar')
+    tagline = models.CharField('Eslogan', max_length=200, blank=True)
+    logo = models.ImageField('Logo', upload_to='site/', blank=True, null=True)
+    base_url = models.CharField(
+        'URL base del sitio', max_length=200, default='http://localhost:8000',
+        help_text='URL que se incrustará en los códigos QR'
+    )
+    primary_color = models.CharField('Color primario', max_length=7, default='#f5a623')
+    secondary_color = models.CharField('Color secundario', max_length=7, default='#1a1a2e')
+    footer_text = models.TextField('Texto del pie', blank=True)
+
+    class Meta:
+        verbose_name = 'Configuración del sitio'
+        verbose_name_plural = 'Configuración del sitio'
+
+    def __str__(self):
+        return self.bar_name
+
+    @classmethod
+    def get_config(cls):
+        config, _ = cls.objects.get_or_create(pk=1)
+        return config

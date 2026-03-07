@@ -1,0 +1,48 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="num">{{ total_categories }}</div>
+    <div class="label">Categorías</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ total_items }}</div>
+    <div class="label">Items totales</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ available_items }}</div>
+    <div class="label">Disponibles</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ featured_items }}</div>
+    <div class="label">Destacados</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ total_tables }}</div>
+    <div class="label">Mesas</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div class="card">
+    <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Acciones rápidas</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <a href="{% url 'menu:panel_item_create' %}" class="btn btn-primary">+ Agregar item al menú</a>
+      <a href="{% url 'menu:panel_category_create' %}" class="btn btn-outline">+ Nueva categoría</a>
+      <a href="{% url 'menu:panel_table_create' %}" class="btn btn-outline">+ Nueva mesa</a>
+      <a href="{% url 'menu:panel_tables' %}" class="btn btn-outline">⬛ Generar QR Codes</a>
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Menú público</div>
+    <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;line-height:1.6;">
+      Los clientes escanean el QR de la mesa y acceden al menú directamente desde su celular.
+    </p>
+    <a href="{% url 'menu:menu_home' %}" target="_blank" class="btn btn-outline">👁 Ver menú público</a>
+  </div>
+</div>
+{% endblock %}

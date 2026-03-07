@@ -1,0 +1,66 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}Configuración{% endblock %}
+{% block page_title %}Configuración{% endblock %}
+{% block nav_config %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Configuración del sitio</h2>
+</div>
+
+<div class="card" style="max-width:600px;">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Identidad</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Nombre del bar</label>
+        {{ form.bar_name }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Eslogan</label>
+        {{ form.tagline }}
+      </div>
+      <div class="form-group span2">
+        <label class="form-label">Logo</label>
+        {{ form.logo }}
+        {% if config.logo %}
+          <div style="margin-top:8px;">
+            <img src="{{ config.logo.url }}" style="height:60px;border-radius:8px;" />
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 14px;">QR y URL</div>
+    <div class="form-grid">
+      <div class="form-group span2">
+        <label class="form-label">URL base del servidor</label>
+        {{ form.base_url }}
+        <span style="font-size:0.72rem;color:var(--muted);">Se incrusta en los QR. Ej: http://192.168.1.10:8002</span>
+      </div>
+    </div>
+
+    <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 14px;">Colores</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Color primario</label>
+        {{ form.primary_color }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color secundario</label>
+        {{ form.secondary_color }}
+      </div>
+    </div>
+
+    <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 14px;">Pie de página</div>
+    <div class="form-group">
+      {{ form.footer_text }}
+    </div>
+
+    <div style="margin-top:22px;">
+      <button type="submit" class="btn btn-primary">Guardar configuración</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

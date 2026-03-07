@@ -1,0 +1,162 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}{% if instance %}Editar{% else %}Nueva{% endif %} Categoría{% endblock %}
+{% block page_title %}{% if instance %}Editar categoría{% else %}Nueva categoría{% endif %}{% endblock %}
+{% block nav_categories %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>{% if instance %}Editar: {{ instance.name }}{% else %}Nueva categoría{% endif %}</h2>
+  <a href="{% url 'menu:panel_categories' %}" class="btn btn-outline">← Volver</a>
+</div>
+
+<div class="card" style="max-width:540px;">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div class="form-group span2">
+        <label class="form-label">Nombre *</label>
+        {{ form.name }}
+        {% if form.name.errors %}<div class="form-errors">{{ form.name.errors }}</div>{% endif %}
+      </div>
+
+      <div class="form-group span2">
+        <label class="form-label">Icono</label>
+        <!-- Input oculto que recibe el valor -->
+        <input type="hidden" name="icon" id="icon-value" value="{{ form.icon.value|default:'🍽️' }}" />
+
+        <!-- Preview del seleccionado -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <span id="icon-preview" style="font-size:2.2rem;line-height:1;">{{ form.icon.value|default:'🍽️' }}</span>
+          <span style="font-size:0.82rem;color:var(--muted);">Hacé clic en uno para seleccionarlo</span>
+        </div>
+
+        <!-- Grid de emojis agrupados -->
+        <div id="emoji-picker" style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;max-height:300px;overflow-y:auto;">
+
+          <div class="emoji-section-title">Bebidas</div>
+          <div class="emoji-grid">
+            {% for e in "🍺🍻🥂🍷🥃🍸🍹🧉🍾🧃🥤🧋☕🍵🧊🫗🫖🍶🥛🍼" %}
+              <button type="button" class="emoji-btn" data-emoji="{{ e }}">{{ e }}</button>
+            {% endfor %}
+          </div>
+
+          <div class="emoji-section-title">Comida general</div>
+          <div class="emoji-grid">
+            {% for e in "🍽️🥗🥙🌮🌯🥪🥨🧀🥚🍳🥞🧇🥓🥩🍗🍖🦴🌭🍔🍟🍕🫓🥜🫘🌰🍞🥐🥖🫔🧆🥙🫕" %}
+              <button type="button" class="emoji-btn" data-emoji="{{ e }}">{{ e }}</button>
+            {% endfor %}
+          </div>
+
+          <div class="emoji-section-title">Mariscos y carnes</div>
+          <div class="emoji-grid">
+            {% for e in "🦐🦞🦀🦑🐙🍣🍱🍤🍙🍚🍛🍜🍝🍠🍢🍡🧁🍧🍨🍦🥧🍰🎂🍮🍭🍬🍫🍿🍩🍪🌰🥝🍓" %}
+              <button type="button" class="emoji-btn" data-emoji="{{ e }}">{{ e }}</button>
+            {% endfor %}
+          </div>
+
+          <div class="emoji-section-title">Frutas y verduras</div>
+          <div class="emoji-grid">
+            {% for e in "🍎🍊🍋🍇🍓🫐🍒🍑🥭🍍🥥🍌🍉🍈🍏🍐🥝🍅🫒🥑🍆🥦🥬🥒🫑🌽🥕🧅🧄🥔🍠🫚🫛" %}
+              <button type="button" class="emoji-btn" data-emoji="{{ e }}">{{ e }}</button>
+            {% endfor %}
+          </div>
+
+          <div class="emoji-section-title">Postres y snacks</div>
+          <div class="emoji-grid">
+            {% for e in "🍰🎂🧁🍩🍪🍫🍬🍭🍮🍯🍿🧂🥫🫙🍱🥡🥠🍙🍘🍥🥮🍡🧁🍧🍨🍦🥧🍺🥜🌰🫘" %}
+              <button type="button" class="emoji-btn" data-emoji="{{ e }}">{{ e }}</button>
+            {% endfor %}
+          </div>
+
+          <div class="emoji-section-title">Otros</div>
+          <div class="emoji-grid">
+            {% for e in "🍴🥄🔪🫙🥢🫕🍶🫗🧊🔥⭐🌟💫✨🎉🎊🎁🏆🥇🎯🎪🎭🎨🎬🎤🎸🎹🎺🎻" %}
+              <button type="button" class="emoji-btn" data-emoji="{{ e }}">{{ e }}</button>
+            {% endfor %}
+          </div>
+
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Orden</label>
+        {{ form.order }}
+      </div>
+      <div class="form-group span2">
+        <label class="form-label">Descripción</label>
+        {{ form.description }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <div class="form-check-row">
+          {{ form.is_active }}
+          <span style="font-size:0.85rem;">Activa (visible en el menú)</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:22px;display:flex;gap:10px;">
+      <button type="submit" class="btn btn-primary">
+        {% if instance %}Guardar cambios{% else %}Crear categoría{% endif %}
+      </button>
+      <a href="{% url 'menu:panel_categories' %}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<style>
+  .emoji-section-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin: 12px 0 6px;
+  }
+  .emoji-section-title:first-child { margin-top: 0; }
+  .emoji-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .emoji-btn {
+    font-size: 1.4rem;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.1s;
+    line-height: 1;
+  }
+  .emoji-btn:hover {
+    background: rgba(245,166,35,0.12);
+    transform: scale(1.15);
+  }
+  .emoji-btn.selected {
+    border-color: var(--primary);
+    background: rgba(245,166,35,0.15);
+  }
+</style>
+
+<script>
+  const input   = document.getElementById('icon-value');
+  const preview = document.getElementById('icon-preview');
+  const buttons = document.querySelectorAll('.emoji-btn');
+
+  function select(btn) {
+    buttons.forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    input.value   = btn.dataset.emoji;
+    preview.textContent = btn.dataset.emoji;
+  }
+
+  // Marcar el actual al cargar
+  buttons.forEach(btn => {
+    if (btn.dataset.emoji === input.value) btn.classList.add('selected');
+    btn.addEventListener('click', () => select(btn));
+  });
+</script>
+{% endblock %}

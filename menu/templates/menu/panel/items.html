@@ -1,0 +1,70 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}Items{% endblock %}
+{% block page_title %}Items del menú{% endblock %}
+{% block nav_items %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Items del menú</h2>
+  <a href="{% url 'menu:panel_item_create' %}" class="btn btn-primary">+ Nuevo item</a>
+</div>
+
+<!-- Filtro por categoría -->
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+  <a href="{% url 'menu:panel_items' %}" class="btn btn-sm {% if not active_category_id %}btn-primary{% else %}btn-outline{% endif %}">
+    Todas
+  </a>
+  {% for cat in categories %}
+    <a href="{% url 'menu:panel_items' %}?categoria={{ cat.pk }}"
+       class="btn btn-sm {% if active_category_id == cat.pk %}btn-primary{% else %}btn-outline{% endif %}">
+      {{ cat.icon }} {{ cat.name }}
+    </a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  {% if items %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Categoría</th>
+        <th>Precio</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>
+          <strong>{{ item.name }}</strong>
+          {% if item.is_featured %}<span class="badge badge-featured" style="margin-left:6px;">Destacado</span>{% endif %}
+          {% if item.description %}<br><span style="font-size:0.75rem;color:var(--muted);">{{ item.description|truncatechars:60 }}</span>{% endif %}
+        </td>
+        <td><span style="font-size:0.9rem;">{{ item.category.icon }}</span> {{ item.category.name }}</td>
+        <td><strong style="color:var(--primary);">${{ item.price }}</strong></td>
+        <td>
+          {% if item.is_available %}<span class="badge badge-on">Disponible</span>
+          {% else %}<span class="badge badge-off">No disponible</span>{% endif %}
+        </td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <a href="{% url 'menu:panel_item_edit' item.pk %}" class="btn btn-outline btn-sm">Editar</a>
+            <a href="{% url 'menu:panel_item_delete' item.pk %}" class="btn btn-danger btn-sm">Eliminar</a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:40px;color:var(--muted);">
+    <div style="font-size:2.5rem;margin-bottom:12px;">🍽️</div>
+    <p>No hay items en esta sección.</p>
+    <br>
+    <a href="{% url 'menu:panel_item_create' %}" class="btn btn-primary">Agregar primer item</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

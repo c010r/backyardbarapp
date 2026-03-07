@@ -1,0 +1,55 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}Categorías{% endblock %}
+{% block page_title %}Categorías{% endblock %}
+{% block nav_categories %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Categorías del menú</h2>
+  <a href="{% url 'menu:panel_category_create' %}" class="btn btn-primary">+ Nueva categoría</a>
+</div>
+
+<div class="card">
+  {% if categories %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Icono</th>
+        <th>Nombre</th>
+        <th>Items</th>
+        <th>Orden</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cat in categories %}
+      <tr>
+        <td style="font-size:1.5rem;">{{ cat.icon }}</td>
+        <td><strong>{{ cat.name }}</strong>{% if cat.description %}<br><span style="font-size:0.75rem;color:var(--muted);">{{ cat.description|truncatechars:50 }}</span>{% endif %}</td>
+        <td>{{ cat.items.count }}</td>
+        <td>{{ cat.order }}</td>
+        <td>
+          {% if cat.is_active %}<span class="badge badge-on">Activa</span>
+          {% else %}<span class="badge badge-off">Inactiva</span>{% endif %}
+        </td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <a href="{% url 'menu:panel_category_edit' cat.pk %}" class="btn btn-outline btn-sm">Editar</a>
+            <a href="{% url 'menu:panel_category_delete' cat.pk %}" class="btn btn-danger btn-sm">Eliminar</a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:40px;color:var(--muted);">
+    <div style="font-size:2.5rem;margin-bottom:12px;">📂</div>
+    <p>No hay categorías creadas aún.</p>
+    <br>
+    <a href="{% url 'menu:panel_category_create' %}" class="btn btn-primary">Crear primera categoría</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

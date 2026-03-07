@@ -1,0 +1,71 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}Mesas y QR{% endblock %}
+{% block page_title %}Mesas y QR Codes{% endblock %}
+{% block nav_tables %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Mesas</h2>
+  <a href="{% url 'menu:panel_table_create' %}" class="btn btn-primary">+ Nueva mesa</a>
+</div>
+
+<!-- Regenerar todos los QR -->
+<div class="card" style="margin-bottom:20px;">
+  <div style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">
+    Configurá la URL base que se incrustará en los QR. Usá la IP de tu red local para que los celulares puedan acceder.
+  </div>
+  <form method="post" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+    {% csrf_token %}
+    <div style="flex:1;min-width:220px;">
+      <label style="font-size:0.78rem;color:var(--muted);display:block;margin-bottom:5px;">URL base del servidor</label>
+      <input type="text" name="base_url" value="{{ config.base_url }}"
+             placeholder="http://192.168.1.10:8002"
+             style="background:#0f0f1a;border:1px solid rgba(245,166,35,0.2);border-radius:8px;padding:10px 14px;color:#e8e8f0;font-size:0.88rem;width:100%;" />
+    </div>
+    <button type="submit" class="btn btn-primary">↺ Regenerar todos los QR</button>
+  </form>
+</div>
+
+<!-- Lista de mesas -->
+{% if tables %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;">
+  {% for table in tables %}
+  <div class="card" style="text-align:center;">
+    <div style="font-weight:600;margin-bottom:4px;">{{ table }}</div>
+    {% if not table.is_active %}
+      <span class="badge badge-off" style="margin-bottom:10px;">Inactiva</span>
+    {% endif %}
+    <div style="font-size:0.68rem;color:var(--muted);margin-bottom:10px;word-break:break-all;">
+      {{ config.base_url }}/menu/{{ table.number }}/
+    </div>
+    {% if table.qr_code %}
+      <img src="{{ table.qr_code.url }}" alt="QR {{ table }}"
+           style="width:150px;height:150px;border-radius:8px;background:white;display:block;margin:0 auto 12px;" />
+    {% else %}
+      <div style="width:150px;height:150px;border-radius:8px;background:#111;display:flex;align-items:center;justify-content:center;color:#555;font-size:0.75rem;margin:0 auto 12px;">
+        Sin QR
+      </div>
+    {% endif %}
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <a href="{% url 'menu:panel_generate_qr' table.pk %}" class="btn btn-outline btn-sm">↺ Generar QR</a>
+      {% if table.qr_code %}
+        <a href="{{ table.qr_code.url }}" download class="btn btn-outline btn-sm">⬇ Descargar PNG</a>
+        <a href="{% url 'menu:menu_table' table.number %}" target="_blank" class="btn btn-outline btn-sm">👁 Ver menú</a>
+      {% endif %}
+      <div style="display:flex;gap:6px;">
+        <a href="{% url 'menu:panel_table_edit' table.pk %}" class="btn btn-outline btn-sm" style="flex:1;">Editar</a>
+        <a href="{% url 'menu:panel_table_delete' table.pk %}" class="btn btn-danger btn-sm" style="flex:1;">Eliminar</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:40px;color:var(--muted);">
+  <div style="font-size:2.5rem;margin-bottom:12px;">🪑</div>
+  <p>No hay mesas creadas aún.</p>
+  <br>
+  <a href="{% url 'menu:panel_table_create' %}" class="btn btn-primary">Crear primera mesa</a>
+</div>
+{% endif %}
+{% endblock %}

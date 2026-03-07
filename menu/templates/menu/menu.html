@@ -1,0 +1,78 @@
+{% extends "menu/base.html" %}
+
+{% block title %}
+  Menú - {{ config.bar_name }}{% if table %} | {{ table.get_display_name }}{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Navegación de categorías -->
+<nav class="cat-nav">
+  <a href="{% if table %}{% url 'menu:menu_table' table.number %}{% else %}{% url 'menu:menu_home' %}{% endif %}"
+     class="cat-btn {% if not active_category %}active{% endif %}">
+    <span class="icon">🍽️</span> Todo
+  </a>
+  {% for cat in categories %}
+    <a href="{% if table %}{% url 'menu:menu_table_category' table.number cat.pk %}{% else %}{% url 'menu:menu_category' cat.pk %}{% endif %}"
+       class="cat-btn {% if active_category.pk == cat.pk %}active{% endif %}">
+      <span class="icon">{{ cat.icon }}</span>
+      {{ cat.name }}
+    </a>
+  {% endfor %}
+</nav>
+
+<main>
+  {% if active_category %}
+    <!-- Vista de categoría específica -->
+    <h2 class="section-title">
+      {{ active_category.icon }} {{ active_category.name }}
+    </h2>
+    {% if active_category.description %}
+      <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 16px;">
+        {{ active_category.description }}
+      </p>
+    {% endif %}
+
+    <div class="items-grid">
+      {% for item in items %}
+        {% include "menu/partials/item_card.html" with item=item %}
+      {% empty %}
+        <div class="empty-state">
+          <div class="icon">😔</div>
+          <p>No hay items disponibles en esta categoría.</p>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <!-- Vista completa del menú -->
+    {% if featured %}
+      <h2 class="section-title">⭐ Destacados</h2>
+      <div class="items-grid">
+        {% for item in featured %}
+          {% include "menu/partials/item_card.html" with item=item show_badge=True %}
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% for category in categories %}
+      {% with items=category.items.all %}
+        {% if items %}
+          <h2 class="section-title">{{ category.icon }} {{ category.name }}</h2>
+          <div class="items-grid">
+            {% for item in items %}
+              {% if item.is_available %}
+                {% include "menu/partials/item_card.html" with item=item %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+    {% empty %}
+      <div class="empty-state">
+        <div class="icon">🍺</div>
+        <p>El menú está siendo preparado.<br>Volvé pronto.</p>
+      </div>
+    {% endfor %}
+  {% endif %}
+</main>
+{% endblock %}

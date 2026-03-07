@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ config.bar_name }}{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: {{ config.primary_color }};
+      --secondary: {{ config.secondary_color }};
+      --bg: #0f0f1a;
+      --card: #1a1a2e;
+      --card-hover: #22223a;
+      --text: #e8e8f0;
+      --muted: #888899;
+      --border: rgba(245,166,35,0.2);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .site-header {
+      background: var(--card);
+      border-bottom: 2px solid var(--primary);
+      padding: 16px 20px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .site-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.8rem;
+      color: var(--primary);
+      letter-spacing: 2px;
+    }
+    .site-header .tagline {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .table-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: var(--secondary);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-top: 6px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* CATEGORY NAV */
+    .cat-nav {
+      display: flex;
+      gap: 8px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      background: rgba(26,26,46,0.95);
+      border-bottom: 1px solid var(--border);
+    }
+    .cat-nav::-webkit-scrollbar { display: none; }
+    .cat-btn {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 25px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .cat-btn:hover, .cat-btn.active {
+      background: var(--primary);
+      color: var(--secondary);
+      border-color: var(--primary);
+    }
+    .cat-btn .icon { font-size: 1rem; }
+
+    /* MAIN */
+    main { padding: 20px 16px 80px; max-width: 720px; margin: 0 auto; }
+
+    /* FEATURED */
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      color: var(--primary);
+      margin: 24px 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* MENU CARDS */
+    .items-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .menu-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      gap: 14px;
+      padding: 14px;
+      transition: all 0.2s;
+      align-items: flex-start;
+    }
+    .menu-item:hover {
+      background: var(--card-hover);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+    .menu-item-img {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #111;
+    }
+    .menu-item-img-placeholder {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+    .menu-item-info { flex: 1; min-width: 0; }
+    .menu-item-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .menu-item-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .menu-item-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .menu-item-price {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .tag {
+      font-size: 0.68rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-featured {
+      font-size: 0.65rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: var(--secondary);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      border-top: 1px solid var(--border);
+    }
+    footer strong { color: var(--primary); }
+
+    /* EMPTY */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+    {% block extra_styles %}{% endblock %}
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  {% if config.logo %}
+    <img src="{{ config.logo.url }}" alt="{{ config.bar_name }}" style="height:50px;margin-bottom:6px;" />
+  {% else %}
+    <h1>{{ config.bar_name }}</h1>
+  {% endif %}
+  {% if config.tagline %}
+    <div class="tagline">{{ config.tagline }}</div>
+  {% endif %}
+  {% if table %}
+    <div class="table-badge">{{ table.get_display_name }}</div>
+  {% endif %}
+</header>
+
+{% block content %}{% endblock %}
+
+<footer>
+  {% if config.footer_text %}
+    {{ config.footer_text }}
+  {% else %}
+    <strong>{{ config.bar_name }}</strong> &bull; Menú digital
+  {% endif %}
+</footer>
+
+</body>
+</html>
