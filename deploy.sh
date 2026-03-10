@@ -92,11 +92,11 @@ MEDIA_ROOT   = '${APP_DIR}/media'
 MEDIA_URL    = '/media/'
 STATIC_URL   = '/static/'
 
-SECURE_BROWSER_XSS_FILTER   = True
-X_FRAME_OPTIONS              = 'DENY'
-SESSION_COOKIE_SECURE        = True
-CSRF_COOKIE_SECURE           = True
-SECURE_CONTENT_TYPE_NOSNIFF  = True
+CSRF_TRUSTED_ORIGINS = ['https://${DOMAIN}', 'http://${DOMAIN}']
+
+SECURE_BROWSER_XSS_FILTER  = True
+X_FRAME_OPTIONS             = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
 PYEOF
 
 chown "$APP_USER:$APP_USER" "$REPO_DIR/backyardbar/settings_prod.py"

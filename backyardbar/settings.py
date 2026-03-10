@@ -8,6 +8,18 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://localhost:8001',
+    'http://localhost:8002',
+    'http://localhost:8003',
+    'http://127.0.0.1:8000',
+    'http://127.0.0.1:8001',
+    'http://127.0.0.1:8002',
+    'http://127.0.0.1:8003',
+    'https://menu.backyardbar.fun',
+]
+
 INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
