@@ -26,7 +26,22 @@ python manage.py seed_data
 
 echo "[5/5] Creando superusuario admin..."
 echo ""
-python manage.py createsuperuser
+read -p "  Usuario admin: " DJANGO_SU_NAME
+read -p "  Email (opcional): " DJANGO_SU_EMAIL
+read -s -p "  Contraseña: " DJANGO_SU_PASSWORD
+echo ""
+read -s -p "  Confirmar contraseña: " DJANGO_SU_PASSWORD2
+echo ""
+
+if [ "$DJANGO_SU_PASSWORD" != "$DJANGO_SU_PASSWORD2" ]; then
+    echo "Error: Las contraseñas no coinciden."
+    exit 1
+fi
+
+DJANGO_SUPERUSER_USERNAME="$DJANGO_SU_NAME" \
+DJANGO_SUPERUSER_EMAIL="$DJANGO_SU_EMAIL" \
+DJANGO_SUPERUSER_PASSWORD="$DJANGO_SU_PASSWORD" \
+python manage.py createsuperuser --noinput
 
 echo ""
 echo "========================================"
