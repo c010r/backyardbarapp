@@ -37,7 +37,9 @@ APP_DIR="/var/www/backyardbar"
 REPO_DIR="$APP_DIR/app"
 VENV_DIR="$APP_DIR/venv"
 SOCK="$APP_DIR/gunicorn.sock"
+SOCK_PEDIDOS="$APP_DIR/gunicorn_pedidos.sock"
 SERVICE="backyardbar"
+SERVICE_PEDIDOS="backyardbar-pedidos"
 RELEASES_DIR="$APP_DIR/releases"
 KEEP_RELEASES=5
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -135,7 +137,7 @@ if [ "$MODE" = "rollback" ]; then
 
     step "Rollback a release: $LAST_RELEASE"
 
-    systemctl stop "$SERVICE" 2>/dev/null || true
+    systemctl stop "$SERVICE" "$SERVICE_PEDIDOS" 2>/dev/null || true
 
     if [ -d "$RELEASES_DIR/$LAST_RELEASE/app" ]; then
         rsync -a --delete \
@@ -155,11 +157,14 @@ if [ "$MODE" = "rollback" ]; then
         warn "No se encontró backup de BD para este release (se mantiene la actual)."
     fi
 
-    systemctl start "$SERVICE"
+    systemctl start "$SERVICE" "$SERVICE_PEDIDOS"
     sleep 2
     systemctl is-active --quiet "$SERVICE" \
-      && info "Servicio reiniciado correctamente" \
-      || error "El servicio no inició tras el rollback. Revisá: journalctl -u $SERVICE -n 40"
+      && info "Gunicorn menú reiniciado" \
+      || error "Gunicorn menú no inició tras rollback. Revisá: journalctl -u $SERVICE -n 40"
+    systemctl is-active --quiet "$SERVICE_PEDIDOS" \
+      && info "Gunicorn pedidos reiniciado" \
+      || warn "Gunicorn pedidos no inició (puede que aún no esté instalado). Revisá: journalctl -u $SERVICE_PEDIDOS -n 40"
 
     echo ""
     echo -e "${BOLD}${GREEN}  Rollback completado → $LAST_RELEASE${NC}"
@@ -187,7 +192,7 @@ info "Sistema y dependencias instalados"
 
 step "2/10  Configurando usuario del sistema"
 id "$APP_USER" &>/dev/null || useradd -m -s /bin/bash "$APP_USER"
-mkdir -p "$REPO_DIR" "$APP_DIR/media" "$APP_DIR/staticfiles" "$APP_DIR/logs" "$RELEASES_DIR"
+mkdir -p "$REPO_DIR" "$APP_DIR/media" "$APP_DIR/staticfiles" "$APP_DIR/staticfiles_pedidos" "$APP_DIR/logs" "$RELEASES_DIR"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 info "Usuario '$APP_USER' y directorios listos"
 
@@ -292,7 +297,63 @@ info "Datos de ejemplo cargados"
 
 sudo -u "$APP_USER" env DJANGO_SETTINGS_MODULE=backyardbar.settings_prod \
   "$VENV_DIR/bin/python" "$REPO_DIR/manage.py" collectstatic --noinput -v 0
-info "Archivos estáticos recolectados"
+info "Archivos estáticos (menú) recolectados"
+
+# ── pedidosapp settings_prod.py ──────────────────────────────
+SECRET_KEY_PEDIDOS=$(python3 -c "
+import secrets, string
+chars = string.ascii_letters + string.digits + '!@#%^&*-_=+'
+print(''.join(secrets.choice(chars) for _ in range(50)))
+")
+
+cat > "$REPO_DIR/pedidosapp/pedidosapp/settings_prod.py" << PYEOF2
+from .settings import *
+
+DEBUG = False
+SECRET_KEY = '${SECRET_KEY_PEDIDOS}'
+ALLOWED_HOSTS = ['${ORDERS_DOMAIN}']
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': '${APP_DIR}/db.sqlite3',
+    }
+}
+
+STATIC_ROOT  = '${APP_DIR}/staticfiles_pedidos'
+MEDIA_ROOT   = '${APP_DIR}/media'
+MEDIA_URL    = '/media/'
+STATIC_URL   = '/static/'
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://${ORDERS_DOMAIN}',
+    'http://${ORDERS_DOMAIN}',
+]
+
+SECURE_BROWSER_XSS_FILTER  = True
+X_FRAME_OPTIONS             = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Twilio SMS
+TWILIO_ACCOUNT_SID  = '${TWILIO_SID}'
+TWILIO_AUTH_TOKEN   = '${TWILIO_TOKEN}'
+TWILIO_PHONE_NUMBER = '${TWILIO_PHONE}'
+PYEOF2
+
+chown "$APP_USER:$APP_USER" "$REPO_DIR/pedidosapp/pedidosapp/settings_prod.py"
+info "pedidosapp/settings_prod.py generado"
+
+sudo -u "$APP_USER" env \
+  DJANGO_SETTINGS_MODULE=pedidosapp.settings_prod \
+  PYTHONPATH="$REPO_DIR" \
+  "$VENV_DIR/bin/python" "$REPO_DIR/pedidosapp/manage.py" migrate --noinput
+info "Migraciones pedidosapp aplicadas"
+
+sudo -u "$APP_USER" env \
+  DJANGO_SETTINGS_MODULE=pedidosapp.settings_prod \
+  PYTHONPATH="$REPO_DIR" \
+  "$VENV_DIR/bin/python" "$REPO_DIR/pedidosapp/manage.py" collectstatic --noinput -v 0
+info "Archivos estáticos (pedidos) recolectados"
 
 step "7/10  Creando superusuario"
 if sudo -u "$APP_USER" env \
@@ -308,10 +369,12 @@ else
   warn "  sudo -u $APP_USER env DJANGO_SETTINGS_MODULE=backyardbar.settings_prod $VENV_DIR/bin/python $REPO_DIR/manage.py createsuperuser"
 fi
 
-step "8/10  Configurando Gunicorn"
+step "8/10  Configurando Gunicorn (menú + pedidos)"
+
+# ── Gunicorn: menú QR ────────────────────────────────────────
 cat > "/etc/systemd/system/${SERVICE}.service" << SVCEOF
 [Unit]
-Description=Gunicorn · Backyard Bar
+Description=Gunicorn · Backyard Bar (menú)
 After=network.target
 
 [Service]
@@ -333,14 +396,43 @@ RestartSec=5
 WantedBy=multi-user.target
 SVCEOF
 
+# ── Gunicorn: pedidos ─────────────────────────────────────────
+cat > "/etc/systemd/system/${SERVICE_PEDIDOS}.service" << SVCEOF2
+[Unit]
+Description=Gunicorn · Backyard Bar (pedidos)
+After=network.target
+
+[Service]
+User=${APP_USER}
+Group=${APP_USER}
+WorkingDirectory=${REPO_DIR}/pedidosapp
+Environment="DJANGO_SETTINGS_MODULE=pedidosapp.settings_prod"
+ExecStart=${VENV_DIR}/bin/gunicorn \\
+    --workers 3 \\
+    --bind unix:${SOCK_PEDIDOS} \\
+    --timeout 120 \\
+    --access-logfile ${APP_DIR}/logs/gunicorn_pedidos_access.log \\
+    --error-logfile  ${APP_DIR}/logs/gunicorn_pedidos_error.log \\
+    pedidosapp.wsgi:application
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF2
+
 systemctl daemon-reload
-systemctl enable "$SERVICE"
-systemctl restart "$SERVICE"
+systemctl enable "$SERVICE" "$SERVICE_PEDIDOS"
+systemctl restart "$SERVICE" "$SERVICE_PEDIDOS"
 sleep 2
 
 systemctl is-active --quiet "$SERVICE" \
-  && info "Gunicorn corriendo" \
-  || error "Gunicorn no inició. Revisá: journalctl -u $SERVICE -n 40"
+  && info "Gunicorn menú corriendo" \
+  || error "Gunicorn menú no inició. Revisá: journalctl -u $SERVICE -n 40"
+
+systemctl is-active --quiet "$SERVICE_PEDIDOS" \
+  && info "Gunicorn pedidos corriendo" \
+  || error "Gunicorn pedidos no inició. Revisá: journalctl -u $SERVICE_PEDIDOS -n 40"
 
 step "9/10  Configurando Nginx"
 cat > "/etc/nginx/sites-available/$DOMAIN" << NGEOF
@@ -392,7 +484,7 @@ server {
     error_log  ${APP_DIR}/logs/nginx_pedidos_error.log;
 
     location /static/ {
-        alias ${APP_DIR}/staticfiles/;
+        alias ${APP_DIR}/staticfiles_pedidos/;
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
@@ -404,7 +496,7 @@ server {
     }
 
     location / {
-        proxy_pass         http://unix:${SOCK};
+        proxy_pass         http://unix:${SOCK_PEDIDOS};
         proxy_set_header   Host              \$host;
         proxy_set_header   X-Real-IP         \$remote_addr;
         proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;

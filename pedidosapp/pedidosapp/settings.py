@@ -1,23 +1,24 @@
+import sys
 from pathlib import Path
 
+# Directorio de este proyecto: backyardbarapp/pedidosapp/
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-backyard-bar-menu-qr-system-change-in-production'
+# Raíz del repo: backyardbarapp/ — donde viven las apps menu y orders
+REPO_DIR = BASE_DIR.parent
+if str(REPO_DIR) not in sys.path:
+    sys.path.insert(0, str(REPO_DIR))
+
+SECRET_KEY = 'django-insecure-pedidos-change-in-production'
 
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:8000',
     'http://localhost:8001',
-    'http://localhost:8002',
-    'http://localhost:8003',
-    'http://127.0.0.1:8000',
     'http://127.0.0.1:8001',
-    'http://127.0.0.1:8002',
-    'http://127.0.0.1:8003',
-    'https://menu.backyardbar.fun',
+    'https://pedidos.backyardbar.fun',
 ]
 
 INSTALLED_APPS = [
@@ -27,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'menu',
+    'orders',
 ]
 
 MIDDLEWARE = [
@@ -39,12 +41,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'backyardbar.urls'
+ROOT_URLCONF = 'pedidosapp.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -57,12 +59,13 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'backyardbar.wsgi.application'
+WSGI_APPLICATION = 'pedidosapp.wsgi.application'
 
+# Base de datos compartida con backyardbarapp
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': REPO_DIR / 'db.sqlite3',
     }
 }
 
@@ -79,15 +82,17 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = REPO_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = '/panel/login/'
-LOGIN_REDIRECT_URL = '/panel/'
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
 
-BAR_NAME = 'Backyard Bar'
+# Twilio SMS (configurar en producción vía setup.sh)
+TWILIO_ACCOUNT_SID = ''
+TWILIO_AUTH_TOKEN = ''
+TWILIO_PHONE_NUMBER = ''
