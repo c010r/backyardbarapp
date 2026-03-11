@@ -273,15 +273,6 @@ SECURE_BROWSER_XSS_FILTER  = True
 X_FRAME_OPTIONS             = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# Email — configurar SMTP real en producción
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = '${DJANGO_SU_EMAIL}'
-EMAIL_HOST_PASSWORD = ''  # Completar manualmente
-DEFAULT_FROM_EMAIL = 'noreply@${DOMAIN}'
-
 # Twilio SMS
 TWILIO_ACCOUNT_SID = '${TWILIO_SID}'
 TWILIO_AUTH_TOKEN  = '${TWILIO_TOKEN}'

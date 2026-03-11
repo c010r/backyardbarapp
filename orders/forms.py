@@ -12,12 +12,6 @@ class RegisterForm(forms.Form):
     corner = forms.CharField(label='Esquina (opcional)', max_length=100, required=False)
     password = forms.CharField(label='Contraseña', widget=forms.PasswordInput)
     password2 = forms.CharField(label='Confirmar contraseña', widget=forms.PasswordInput)
-    verification_method = forms.ChoiceField(
-        label='Verificar cuenta por',
-        choices=[('email', 'Email'), ('sms', 'SMS')],
-        initial='email',
-        widget=forms.RadioSelect,
-    )
 
     def clean_email(self):
         email = self.cleaned_data['email'].lower()

@@ -94,11 +94,7 @@ LOGIN_REDIRECT_URL = '/panel/'
 
 BAR_NAME = 'Backyard Bar'
 
-# Email (cambiar a SMTP en producción)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'noreply@backyardbar.fun'
-
-# Twilio SMS (opcional — dejar vacío para deshabilitar SMS)
+# Twilio SMS (configurar en producción vía setup.sh)
 TWILIO_ACCOUNT_SID = ''
 TWILIO_AUTH_TOKEN = ''
 TWILIO_PHONE_NUMBER = ''

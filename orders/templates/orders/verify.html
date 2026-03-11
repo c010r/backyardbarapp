@@ -4,13 +4,10 @@
 {% block content %}
 <main>
   <div class="form-card" style="text-align:center;">
-    <div style="font-size:3rem;margin-bottom:12px;">
-      {% if method == 'sms' %}📱{% else %}📧{% endif %}
-    </div>
+    <div style="font-size:3rem;margin-bottom:12px;">📱</div>
     <h2>Verificá tu cuenta</h2>
     <p class="subtitle">
-      Enviamos un código de 6 dígitos a tu
-      {% if method == 'sms' %}teléfono{% else %}email{% endif %}.
+      Enviamos un código de 6 dígitos a tu teléfono por SMS.
       Ingresalo para activar tu cuenta.
     </p>
 

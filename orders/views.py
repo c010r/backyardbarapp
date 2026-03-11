@@ -13,7 +13,7 @@ from menu.models import Category, MenuItem, SiteConfig
 
 from .forms import LoginForm, RegisterForm, VerifyForm
 from .models import Customer, Order, OrderItem, VerificationCode
-from .utils import generate_code, send_verification_email, send_verification_sms
+from .utils import generate_code, send_verification_sms
 
 
 # ── Helpers ──────────────────────────────────────────────────
@@ -25,14 +25,11 @@ def _get_customer(user):
         return None
 
 
-def _create_and_send_code(customer, method):
+def _create_and_send_code(customer):
     code = generate_code()
-    code_obj = VerificationCode.objects.create(customer=customer, code=code, method=method)
+    code_obj = VerificationCode.objects.create(customer=customer, code=code, method='sms')
     try:
-        if method == 'sms':
-            send_verification_sms(customer, code)
-        else:
-            send_verification_email(customer, code)
+        send_verification_sms(customer, code)
     except Exception:
         pass  # Code created, user can resend
     return code_obj
@@ -81,7 +78,6 @@ def register_view(request):
         return redirect('orders:home')
 
     config = SiteConfig.get_config()
-    sms_enabled = bool(getattr(settings, 'TWILIO_ACCOUNT_SID', None))
 
     if request.method == 'POST':
         form = RegisterForm(request.POST)
@@ -101,21 +97,14 @@ def register_view(request):
                 street_number=d['street_number'],
                 corner=d.get('corner', ''),
             )
-            method = d['verification_method']
-            if method == 'sms' and not sms_enabled:
-                method = 'email'
-
-            _create_and_send_code(customer, method)
+            _create_and_send_code(customer)
             login(request, user)
-            request.session['verification_method'] = method
-            messages.success(request, f'Cuenta creada. Ingresá el código enviado a tu {method}.')
+            messages.success(request, 'Cuenta creada. Ingresá el código enviado a tu teléfono.')
             return redirect('orders:verify')
     else:
         form = RegisterForm()
 
-    return render(request, 'orders/register.html', {
-        'form': form, 'config': config, 'sms_enabled': sms_enabled,
-    })
+    return render(request, 'orders/register.html', {'form': form, 'config': config})
 
 
 def verify_view(request):
@@ -129,12 +118,11 @@ def verify_view(request):
         return redirect('orders:menu')
 
     config = SiteConfig.get_config()
-    method = request.session.get('verification_method', 'email')
 
     if request.method == 'POST':
         if 'resend' in request.POST:
-            _create_and_send_code(customer, method)
-            messages.info(request, 'Se reenvió el código.')
+            _create_and_send_code(customer)
+            messages.info(request, 'Se reenvió el código por SMS.')
             return redirect('orders:verify')
 
         form = VerifyForm(request.POST)
@@ -158,9 +146,7 @@ def verify_view(request):
     else:
         form = VerifyForm()
 
-    return render(request, 'orders/verify.html', {
-        'form': form, 'config': config, 'method': method,
-    })
+    return render(request, 'orders/verify.html', {'form': form, 'config': config})
 
 
 def login_view(request):

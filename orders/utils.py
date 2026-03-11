@@ -1,26 +1,10 @@
 import random
 import string
-from django.core.mail import send_mail
 from django.conf import settings
 
 
 def generate_code(length=6):
     return ''.join(random.choices(string.digits, k=length))
-
-
-def send_verification_email(customer, code):
-    send_mail(
-        subject='Código de verificación — Backyard Bar',
-        message=(
-            f'Hola {customer.user.first_name}!\n\n'
-            f'Tu código de verificación es: {code}\n\n'
-            f'El código expira en 15 minutos.\n\n'
-            f'Si no solicitaste este código, ignorá este mensaje.'
-        ),
-        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@backyardbar.fun'),
-        recipient_list=[customer.user.email],
-        fail_silently=False,
-    )
 
 
 def send_verification_sms(customer, code):
