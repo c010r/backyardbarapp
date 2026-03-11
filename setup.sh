@@ -270,14 +270,18 @@ sudo -u "$APP_USER" env DJANGO_SETTINGS_MODULE=backyardbar.settings_prod \
 info "Archivos estáticos recolectados"
 
 step "7/10  Creando superusuario"
-sudo -u "$APP_USER" env \
+if sudo -u "$APP_USER" env \
   DJANGO_SETTINGS_MODULE=backyardbar.settings_prod \
   DJANGO_SUPERUSER_USERNAME="$DJANGO_SU_NAME" \
   DJANGO_SUPERUSER_EMAIL="$DJANGO_SU_EMAIL" \
   DJANGO_SUPERUSER_PASSWORD="$DJANGO_SU_PASSWORD" \
-  "$VENV_DIR/bin/python" "$REPO_DIR/manage.py" createsuperuser --noinput 2>/dev/null \
-  || warn "El superusuario ya existe, se omite."
-info "Superusuario '$DJANGO_SU_NAME' listo"
+  "$VENV_DIR/bin/python" "$REPO_DIR/manage.py" createsuperuser --noinput; then
+  info "Superusuario '$DJANGO_SU_NAME' creado"
+else
+  warn "No se pudo crear el superusuario (¿ya existe o la contraseña no cumple los requisitos?)."
+  warn "Podés crearlo manualmente:"
+  warn "  sudo -u $APP_USER env DJANGO_SETTINGS_MODULE=backyardbar.settings_prod $VENV_DIR/bin/python $REPO_DIR/manage.py createsuperuser"
+fi
 
 step "8/10  Configurando Gunicorn"
 cat > "/etc/systemd/system/${SERVICE}.service" << SVCEOF
