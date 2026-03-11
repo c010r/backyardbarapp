@@ -62,6 +62,20 @@ if [ "$MODE" != "rollback" ]; then
     [ "$DJANGO_SU_PASSWORD" != "$DJANGO_SU_PASSWORD2" ] && error "Las contraseñas no coinciden."
 fi
 
+# ── Credenciales Twilio SMS (solo producción) ─────────────────
+TWILIO_SID=""
+TWILIO_TOKEN=""
+TWILIO_PHONE=""
+if [ "$MODE" = "prod" ]; then
+    echo ""
+    echo -e "  ${BOLD}Twilio SMS (Enter para omitir):${NC}"
+    read -rp  "  Account SID:   " TWILIO_SID
+    if [ -n "$TWILIO_SID" ]; then
+        read -rs -p "  Auth Token:    " TWILIO_TOKEN; echo ""
+        read -rp  "  Número Twilio (ej: +15005550006): " TWILIO_PHONE
+    fi
+fi
+
 # ════════════════════════════════════════════════════════════
 # MODO DESARROLLO LOCAL
 # ════════════════════════════════════════════════════════════
@@ -267,6 +281,11 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = '${DJANGO_SU_EMAIL}'
 EMAIL_HOST_PASSWORD = ''  # Completar manualmente
 DEFAULT_FROM_EMAIL = 'noreply@${DOMAIN}'
+
+# Twilio SMS
+TWILIO_ACCOUNT_SID = '${TWILIO_SID}'
+TWILIO_AUTH_TOKEN  = '${TWILIO_TOKEN}'
+TWILIO_PHONE_NUMBER = '${TWILIO_PHONE}'
 PYEOF
 
 chown "$APP_USER:$APP_USER" "$REPO_DIR/backyardbar/settings_prod.py"
