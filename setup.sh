@@ -359,6 +359,7 @@ info "Nginx configurado"
 
 step "10/10  Instalando SSL (Let's Encrypt)"
 SSL_EMAIL="${DJANGO_SU_EMAIL:-admin@${DOMAIN}}"
+SSL_OK=false
 if certbot --nginx \
       -d "$DOMAIN" \
       --non-interactive \
@@ -367,10 +368,9 @@ if certbot --nginx \
       --redirect \
       2>&1 | grep -q "Congratulations\|Certificate not yet due"; then
   info "SSL instalado correctamente"
+  SSL_OK=true
 else
   warn "SSL no pudo instalarse (posiblemente el DNS aún no propagó)."
-  warn "Ejecutá esto cuando el DNS esté listo:"
-  warn "  certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL --redirect"
 fi
 
 systemctl enable certbot.timer 2>/dev/null || true
@@ -398,6 +398,11 @@ echo ""
 echo -e "  ${BOLD}Snapshot guardado:${NC} $RELEASE_TAG"
 echo -e "  ${BOLD}Para hacer rollback:${NC} sudo bash setup.sh --rollback"
 echo ""
+if [ "$SSL_OK" = false ]; then
+echo -e "  ${BOLD}${RED}SSL pendiente — ejecutá cuando el DNS propague:${NC}"
+echo -e "    ${YELLOW}certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL --redirect${NC}"
+echo ""
+fi
 echo -e "  ${BOLD}Comandos útiles:${NC}"
 echo -e "    systemctl status  ${SERVICE}"
 echo -e "    systemctl restart ${SERVICE}"
