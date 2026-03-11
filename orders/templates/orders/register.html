@@ -1,0 +1,111 @@
+{% extends "orders/base.html" %}
+{% block title %}Registrarse · {{ config.bar_name }}{% endblock %}
+
+{% block content %}
+<main>
+  <div class="form-card" style="max-width:540px;">
+    <h2>Crear cuenta</h2>
+    <p class="subtitle">Completá tus datos para hacer pedidos a domicilio</p>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <ul class="messages-list">
+          {% for error in form.non_field_errors %}
+            <li class="error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" name="first_name" value="{{ form.first_name.value|default:'' }}"
+                 placeholder="Juan" autocomplete="given-name" />
+          {% if form.first_name.errors %}<p class="error-msg">{{ form.first_name.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="form-group">
+          <label>Apellido</label>
+          <input type="text" name="last_name" value="{{ form.last_name.value|default:'' }}"
+                 placeholder="García" autocomplete="family-name" />
+          {% if form.last_name.errors %}<p class="error-msg">{{ form.last_name.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ form.email.value|default:'' }}"
+               placeholder="tu@email.com" autocomplete="email" />
+        {% if form.email.errors %}<p class="error-msg">{{ form.email.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input type="tel" name="phone" value="{{ form.phone.value|default:'' }}"
+               placeholder="+598 99 123 456" autocomplete="tel" />
+        {% if form.phone.errors %}<p class="error-msg">{{ form.phone.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group" style="grid-column: span 1;">
+          <label>Calle / Dirección</label>
+          <input type="text" name="address" value="{{ form.address.value|default:'' }}"
+                 placeholder="Av. 18 de Julio" autocomplete="street-address" />
+          {% if form.address.errors %}<p class="error-msg">{{ form.address.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="form-group">
+          <label>Número</label>
+          <input type="text" name="street_number" value="{{ form.street_number.value|default:'' }}"
+                 placeholder="1234" />
+          {% if form.street_number.errors %}<p class="error-msg">{{ form.street_number.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Esquina (opcional)</label>
+        <input type="text" name="corner" value="{{ form.corner.value|default:'' }}"
+               placeholder="Ej: Rivera" />
+        {% if form.corner.errors %}<p class="error-msg">{{ form.corner.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" name="password" placeholder="••••••••" autocomplete="new-password" />
+          {% if form.password.errors %}<p class="error-msg">{{ form.password.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="form-group">
+          <label>Confirmar contraseña</label>
+          <input type="password" name="password2" placeholder="••••••••" autocomplete="new-password" />
+          {% if form.password2.errors %}<p class="error-msg">{{ form.password2.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Verificar cuenta por</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="verification_method" value="email"
+              {% if not form.verification_method.value or form.verification_method.value == 'email' %}checked{% endif %} />
+            📧 Email
+          </label>
+          {% if sms_enabled %}
+          <label class="radio-option">
+            <input type="radio" name="verification_method" value="sms"
+              {% if form.verification_method.value == 'sms' %}checked{% endif %} />
+            📱 SMS
+          </label>
+          {% endif %}
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="margin-top:8px;">Crear cuenta</button>
+    </form>
+
+    <p class="text-center mt-16">
+      ¿Ya tenés cuenta? <a href="{% url 'orders:login' %}" class="link">Iniciar sesión</a>
+    </p>
+  </div>
+</main>
+{% endblock %}

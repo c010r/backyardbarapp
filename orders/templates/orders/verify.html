@@ -1,0 +1,46 @@
+{% extends "orders/base.html" %}
+{% block title %}Verificar cuenta · {{ config.bar_name }}{% endblock %}
+
+{% block content %}
+<main>
+  <div class="form-card" style="text-align:center;">
+    <div style="font-size:3rem;margin-bottom:12px;">
+      {% if method == 'sms' %}📱{% else %}📧{% endif %}
+    </div>
+    <h2>Verificá tu cuenta</h2>
+    <p class="subtitle">
+      Enviamos un código de 6 dígitos a tu
+      {% if method == 'sms' %}teléfono{% else %}email{% endif %}.
+      Ingresalo para activar tu cuenta.
+    </p>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="form-group" style="margin-bottom:20px;">
+        <input type="text" name="code" placeholder="000000"
+               inputmode="numeric" autocomplete="one-time-code"
+               maxlength="6" style="font-size:2rem;text-align:center;letter-spacing:10px;padding:14px;"
+               value="{{ form.code.value|default:'' }}" autofocus />
+        {% if form.code.errors %}
+          <p class="error-msg" style="text-align:center;">{{ form.code.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary">Verificar</button>
+    </form>
+
+    <form method="post" style="margin-top:16px;">
+      {% csrf_token %}
+      <button type="submit" name="resend" value="1"
+              class="btn btn-secondary" style="width:100%;">
+        Reenviar código
+      </button>
+    </form>
+
+    <p class="mt-16" style="font-size:0.8rem;color:var(--muted);">
+      El código expira en 15 minutos.
+    </p>
+  </div>
+</main>
+{% endblock %}

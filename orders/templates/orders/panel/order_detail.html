@@ -1,0 +1,159 @@
+{% extends "orders/base.html" %}
+{% block title %}Pedido #{{ order.pk }} · Panel{% endblock %}
+
+{% block extra_styles %}
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+@media (max-width: 540px) { .detail-grid { grid-template-columns: 1fr; } }
+.detail-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+.detail-card h4 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.detail-row { display: flex; flex-direction: column; margin-bottom: 8px; }
+.detail-row .lbl { font-size: 0.75rem; color: var(--muted); }
+.detail-row .val { font-size: 0.9rem; font-weight: 500; }
+.items-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.items-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 8px 4px; border-bottom: 1px solid var(--border); }
+.items-table td { padding: 10px 4px; border-bottom: 1px solid var(--border); }
+.items-table tr:last-child td { border-bottom: none; }
+.items-table .price { text-align: right; color: var(--primary); font-weight: 600; }
+.total-row { display: flex; justify-content: space-between; font-weight: 700; font-size: 1.1rem; padding-top: 12px; border-top: 2px solid var(--border); }
+.total-row span:last-child { color: var(--primary); }
+
+.status-panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+.status-panel h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 14px; }
+.status-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.status-btn {
+  flex: 1;
+  min-width: 130px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.status-btn:hover { border-color: var(--primary); color: var(--primary); }
+.status-btn.current { border-color: var(--primary); background: rgba(245,166,35,0.12); color: var(--primary); }
+.status-btn.delivery { border-color: var(--success); color: var(--success); }
+.status-btn.delivery:hover, .status-btn.delivery.current { background: rgba(46,204,113,0.12); }
+.status-btn.cancel { border-color: var(--danger); color: var(--danger); }
+.status-btn.cancel:hover, .status-btn.cancel.current { background: rgba(231,76,60,0.1); }
+{% endblock %}
+
+{% block content %}
+<main>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+    <a href="{% url 'orders:panel_orders' %}" style="color:var(--muted);text-decoration:none;font-size:0.85rem;">← Volver</a>
+    <h2 style="font-family:'Playfair Display',serif;color:var(--primary);font-size:1.4rem;">
+      Pedido #{{ order.pk }}
+    </h2>
+    <span style="padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;
+      {% if order.status == 'in_process' %}background:rgba(245,166,35,0.2);color:var(--primary)
+      {% elif order.status == 'out_for_delivery' %}background:rgba(46,204,113,0.2);color:var(--success)
+      {% elif order.status == 'cancelled' %}background:rgba(231,76,60,0.15);color:var(--danger)
+      {% else %}background:rgba(136,136,153,0.2);color:var(--muted){% endif %}">
+      {{ order.get_status_display }}
+    </span>
+  </div>
+
+  <!-- Status control -->
+  {% if order.status != 'delivered' and order.status != 'cancelled' %}
+  <div class="status-panel">
+    <h4>Cambiar estado</h4>
+    <div class="status-grid">
+      {% if order.status != 'in_process' %}
+      <form method="post" action="{% url 'orders:panel_update_status' order.pk %}">
+        {% csrf_token %}<input type="hidden" name="status" value="in_process" />
+        <button type="submit" class="status-btn {% if order.status == 'in_process' %}current{% endif %}">
+          🍳 En proceso
+        </button>
+      </form>
+      {% endif %}
+
+      <form method="post" action="{% url 'orders:panel_update_status' order.pk %}">
+        {% csrf_token %}<input type="hidden" name="status" value="out_for_delivery" />
+        <button type="submit" class="status-btn delivery {% if order.status == 'out_for_delivery' %}current{% endif %}">
+          🛵 Salida delivery
+        </button>
+      </form>
+
+      <form method="post" action="{% url 'orders:panel_update_status' order.pk %}">
+        {% csrf_token %}<input type="hidden" name="status" value="delivered" />
+        <button type="submit" class="status-btn">✅ Entregado</button>
+      </form>
+
+      <form method="post" action="{% url 'orders:panel_update_status' order.pk %}">
+        {% csrf_token %}<input type="hidden" name="status" value="cancelled" />
+        <button type="submit" class="status-btn cancel"
+                onclick="return confirm('¿Cancelar este pedido?')">❌ Cancelar</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Customer + Order info -->
+  <div class="detail-grid">
+    <div class="detail-card">
+      <h4>👤 Cliente</h4>
+      <div class="detail-row"><span class="lbl">Nombre</span><span class="val">{{ order.customer.full_name }}</span></div>
+      <div class="detail-row"><span class="lbl">Email</span><span class="val">{{ order.customer.user.email }}</span></div>
+      <div class="detail-row"><span class="lbl">Teléfono</span><span class="val">{{ order.customer.phone }}</span></div>
+      <div class="detail-row"><span class="lbl">Dirección</span><span class="val">{{ order.customer.full_address }}</span></div>
+    </div>
+    <div class="detail-card">
+      <h4>📋 Pedido</h4>
+      <div class="detail-row"><span class="lbl">Número</span><span class="val">#{{ order.pk }}</span></div>
+      <div class="detail-row"><span class="lbl">Fecha</span><span class="val">{{ order.created_at|date:"d/m/Y H:i" }}</span></div>
+      <div class="detail-row"><span class="lbl">Última actualización</span><span class="val">{{ order.updated_at|date:"d/m/Y H:i" }}</span></div>
+      {% if order.notes %}
+      <div class="detail-row">
+        <span class="lbl">Notas</span>
+        <span class="val" style="color:var(--muted);">{{ order.notes }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Items -->
+  <div class="detail-card">
+    <h4>🛒 Productos</h4>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th style="text-align:center;">Cant.</th>
+          <th style="text-align:right;">Precio unit.</th>
+          <th style="text-align:right;">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in order.items.all %}
+        <tr>
+          <td>{{ item.menu_item.name }}</td>
+          <td style="text-align:center;">{{ item.quantity }}</td>
+          <td class="price">${{ item.unit_price }}</td>
+          <td class="price">${{ item.subtotal }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="total-row" style="margin-top:14px;">
+      <span>Total</span>
+      <span>${{ order.total }}</span>
+    </div>
+  </div>
+</main>
+{% endblock %}

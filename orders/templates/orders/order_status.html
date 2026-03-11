@@ -1,0 +1,250 @@
+{% extends "orders/base.html" %}
+{% block title %}Pedido #{{ order.pk }} · {{ config.bar_name }}{% endblock %}
+
+{% block extra_styles %}
+.status-page { text-align: center; padding: 40px 20px; }
+.status-icon { font-size: 5rem; margin-bottom: 16px; display: block; }
+.status-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+.status-subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 32px; }
+
+.progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 24px auto;
+  max-width: 400px;
+}
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.progress-dot {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  position: relative;
+  z-index: 1;
+  transition: all 0.4s;
+}
+.progress-dot.active {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.progress-dot.done {
+  border-color: var(--success);
+  background: var(--success);
+}
+.progress-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  margin-bottom: 20px;
+  transition: background 0.4s;
+}
+.progress-line.done { background: var(--success); }
+.progress-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.2;
+}
+.progress-label.active { color: var(--primary); font-weight: 600; }
+.progress-label.done { color: var(--success); }
+
+.order-summary {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 24px auto;
+  max-width: 420px;
+  text-align: left;
+}
+.order-summary h4 {
+  color: var(--primary);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+.order-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.order-row:last-child { border-bottom: none; }
+.order-row .qty { color: var(--muted); }
+.order-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 1rem;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.order-total-row span:last-child { color: var(--primary); }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+.pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+@keyframes drive {
+  0%   { transform: translateX(-10px); }
+  50%  { transform: translateX(10px); }
+  100% { transform: translateX(-10px); }
+}
+.drive { animation: drive 1.2s ease-in-out infinite; }
+{% endblock %}
+
+{% block content %}
+<main>
+  <div class="status-page">
+    <span class="status-icon" id="statusIcon">
+      {% if order.status == 'in_process' %}🍳
+      {% elif order.status == 'out_for_delivery' %}🛵
+      {% elif order.status == 'delivered' %}✅
+      {% else %}❌{% endif %}
+    </span>
+
+    <h2 class="status-title" id="statusTitle">
+      {{ order.get_status_display }}
+    </h2>
+    <p class="status-subtitle" id="statusSubtitle">
+      {% if order.status == 'in_process' %}
+        Estamos preparando tu pedido. Te avisamos cuando salga.
+      {% elif order.status == 'out_for_delivery' %}
+        ¡Tu pedido está en camino! El delivery ya salió.
+      {% elif order.status == 'delivered' %}
+        ¡Tu pedido fue entregado! Gracias por elegirnos. 🎉
+      {% else %}
+        El pedido fue cancelado. Contactate con nosotros para más información.
+      {% endif %}
+    </p>
+
+    <!-- Progress bar -->
+    {% if order.status != 'cancelled' %}
+    <div class="progress-bar">
+      <div class="progress-step">
+        <div class="progress-dot done">✓</div>
+        <div class="progress-label done">Recibido</div>
+      </div>
+      <div class="progress-line {% if order.status == 'out_for_delivery' or order.status == 'delivered' %}done{% endif %}" id="line1"></div>
+      <div class="progress-step">
+        <div class="progress-dot {% if order.status == 'in_process' %}active{% elif order.status == 'out_for_delivery' or order.status == 'delivered' %}done{% endif %}" id="dot2">
+          {% if order.status == 'out_for_delivery' or order.status == 'delivered' %}✓{% else %}🍳{% endif %}
+        </div>
+        <div class="progress-label {% if order.status == 'in_process' %}active{% elif order.status == 'out_for_delivery' or order.status == 'delivered' %}done{% endif %}">En proceso</div>
+      </div>
+      <div class="progress-line {% if order.status == 'delivered' %}done{% endif %}" id="line2"></div>
+      <div class="progress-step">
+        <div class="progress-dot {% if order.status == 'out_for_delivery' %}active{% elif order.status == 'delivered' %}done{% endif %}" id="dot3">
+          {% if order.status == 'delivered' %}✓{% else %}🛵{% endif %}
+        </div>
+        <div class="progress-label {% if order.status == 'out_for_delivery' %}active{% elif order.status == 'delivered' %}done{% endif %}">En camino</div>
+      </div>
+      <div class="progress-line {% if order.status == 'delivered' %}done{% endif %}" id="line3"></div>
+      <div class="progress-step">
+        <div class="progress-dot {% if order.status == 'delivered' %}done{% endif %}" id="dot4">
+          {% if order.status == 'delivered' %}✓{% else %}🏠{% endif %}
+        </div>
+        <div class="progress-label {% if order.status == 'delivered' %}done{% endif %}">Entregado</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Order summary -->
+    <div class="order-summary">
+      <h4>Pedido #{{ order.pk }}</h4>
+      {% for item in order.items.all %}
+        <div class="order-row">
+          <span><span class="qty">{{ item.quantity }}×</span> {{ item.menu_item.name }}</span>
+          <span>${{ item.subtotal }}</span>
+        </div>
+      {% endfor %}
+      {% if order.notes %}
+        <div style="margin-top:10px;padding:8px 10px;background:rgba(245,166,35,0.07);border-radius:6px;font-size:0.82rem;color:var(--muted);">
+          📝 {{ order.notes }}
+        </div>
+      {% endif %}
+      <div class="order-total-row">
+        <span>Total</span>
+        <span>${{ order.total }}</span>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;">
+      <p style="color:var(--muted);font-size:0.75rem;margin-bottom:12px;">
+        Dirección de entrega: {{ customer.full_address }}
+      </p>
+      <a href="{% url 'orders:menu' %}" class="btn btn-secondary" style="margin-right:8px;">
+        ← Volver al menú
+      </a>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const orderId = {{ order.pk }};
+const currentStatus = '{{ order.status }}';
+
+const ICONS = {
+  in_process:        { icon: '🍳', cls: 'pulse' },
+  out_for_delivery:  { icon: '🛵', cls: 'drive' },
+  delivered:         { icon: '✅', cls: '' },
+  cancelled:         { icon: '❌', cls: '' },
+};
+const SUBTITLES = {
+  in_process:       'Estamos preparando tu pedido. Te avisamos cuando salga.',
+  out_for_delivery: '¡Tu pedido está en camino! El delivery ya salió.',
+  delivered:        '¡Tu pedido fue entregado! Gracias por elegirnos. 🎉',
+  cancelled:        'El pedido fue cancelado.',
+};
+
+function applyStatus(status) {
+  const s = ICONS[status] || ICONS.in_process;
+  const iconEl = document.getElementById('statusIcon');
+  iconEl.textContent = s.icon;
+  iconEl.className = 'status-icon ' + s.cls;
+  document.getElementById('statusSubtitle').textContent = SUBTITLES[status] || '';
+}
+
+applyStatus(currentStatus);
+
+// Poll only if not final
+if (currentStatus !== 'delivered' && currentStatus !== 'cancelled') {
+  const poll = setInterval(async () => {
+    try {
+      const r = await fetch('/api/pedido/' + orderId + '/estado/');
+      const data = await r.json();
+      if (data.status !== currentStatus) {
+        clearInterval(poll);
+        document.getElementById('statusTitle').textContent = data.status_display;
+        applyStatus(data.status);
+        setTimeout(() => location.reload(), 1500);
+      }
+    } catch {}
+  }, 5000);
+}
+</script>
+{% endblock %}

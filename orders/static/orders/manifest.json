@@ -1,0 +1,21 @@
+{
+  "name": "Backyard Bar · Pedidos",
+  "short_name": "BB Pedidos",
+  "description": "Hacé tus pedidos en Backyard Bar",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f1a",
+  "theme_color": "#f5a623",
+  "lang": "es",
+  "categories": ["food", "shopping"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231a1a2e'/><text y='130' x='96' text-anchor='middle' font-size='110'>🍺</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

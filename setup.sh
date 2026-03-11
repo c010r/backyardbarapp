@@ -31,6 +31,7 @@ fi
 
 # ── Configuración producción ─────────────────────────────────
 DOMAIN="menu.backyardbar.fun"
+ORDERS_DOMAIN="pedidos.backyardbar.fun"
 APP_USER="backyardbar"
 APP_DIR="/var/www/backyardbar"
 REPO_DIR="$APP_DIR/app"
@@ -233,7 +234,7 @@ from .settings import *
 
 DEBUG = False
 SECRET_KEY = '${SECRET_KEY}'
-ALLOWED_HOSTS = ['${DOMAIN}', 'www.${DOMAIN}']
+ALLOWED_HOSTS = ['${DOMAIN}', 'www.${DOMAIN}', '${ORDERS_DOMAIN}']
 
 DATABASES = {
     'default': {
@@ -247,11 +248,25 @@ MEDIA_ROOT   = '${APP_DIR}/media'
 MEDIA_URL    = '/media/'
 STATIC_URL   = '/static/'
 
-CSRF_TRUSTED_ORIGINS = ['https://${DOMAIN}', 'http://${DOMAIN}']
+CSRF_TRUSTED_ORIGINS = [
+    'https://${DOMAIN}',
+    'http://${DOMAIN}',
+    'https://${ORDERS_DOMAIN}',
+    'http://${ORDERS_DOMAIN}',
+]
 
 SECURE_BROWSER_XSS_FILTER  = True
 X_FRAME_OPTIONS             = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Email — configurar SMTP real en producción
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = '${DJANGO_SU_EMAIL}'
+EMAIL_HOST_PASSWORD = ''  # Completar manualmente
+DEFAULT_FROM_EMAIL = 'noreply@${DOMAIN}'
 PYEOF
 
 chown "$APP_USER:$APP_USER" "$REPO_DIR/backyardbar/settings_prod.py"
@@ -352,22 +367,60 @@ server {
 }
 NGEOF
 
+# Nginx para menú
 ln -sf "/etc/nginx/sites-available/$DOMAIN" "/etc/nginx/sites-enabled/$DOMAIN"
+
+# Nginx para pedidos (mismo backend, diferente dominio)
+cat > "/etc/nginx/sites-available/$ORDERS_DOMAIN" << NGEOF2
+server {
+    listen 80;
+    server_name ${ORDERS_DOMAIN};
+
+    client_max_body_size 20M;
+
+    access_log ${APP_DIR}/logs/nginx_pedidos_access.log;
+    error_log  ${APP_DIR}/logs/nginx_pedidos_error.log;
+
+    location /static/ {
+        alias ${APP_DIR}/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /media/ {
+        alias ${APP_DIR}/media/;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    location / {
+        proxy_pass         http://unix:${SOCK};
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_redirect     off;
+        proxy_read_timeout 120;
+    }
+}
+NGEOF2
+
+ln -sf "/etc/nginx/sites-available/$ORDERS_DOMAIN" "/etc/nginx/sites-enabled/$ORDERS_DOMAIN"
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
-info "Nginx configurado"
+info "Nginx configurado (menú + pedidos)"
 
 step "10/10  Instalando SSL (Let's Encrypt)"
 SSL_EMAIL="${DJANGO_SU_EMAIL:-admin@${DOMAIN}}"
 SSL_OK=false
 if certbot --nginx \
-      -d "$DOMAIN" \
+      -d "$DOMAIN" -d "$ORDERS_DOMAIN" \
       --non-interactive \
       --agree-tos \
       --email "$SSL_EMAIL" \
       --redirect \
       2>&1 | grep -q "Congratulations\|Certificate not yet due"; then
-  info "SSL instalado correctamente"
+  info "SSL instalado correctamente para ambos dominios"
   SSL_OK=true
 else
   warn "SSL no pudo instalarse (posiblemente el DNS aún no propagó)."
@@ -389,8 +442,10 @@ echo -e "${BOLD}${GREEN}╔═════════════════�
 echo -e "║       Backyard Bar · Deploy completado        ║"
 echo -e "╚═══════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  Menú público:    ${GREEN}https://${DOMAIN}/${NC}"
-echo -e "  Panel de gestión:${GREEN}https://${DOMAIN}/panel/login/${NC}"
+echo -e "  Menú QR:         ${GREEN}https://${DOMAIN}/${NC}"
+echo -e "  Pedidos online:  ${GREEN}https://${ORDERS_DOMAIN}/${NC}"
+echo -e "  Panel gestión:   ${GREEN}https://${ORDERS_DOMAIN}/panel/pedidos/${NC}"
+echo -e "  Panel menú:      ${GREEN}https://${DOMAIN}/panel/login/${NC}"
 echo ""
 echo -e "  ${BOLD}Credenciales del panel:${NC}"
 echo -e "    Usuario: ${YELLOW}${DJANGO_SU_NAME}${NC}"
@@ -399,8 +454,8 @@ echo -e "  ${BOLD}Snapshot guardado:${NC} $RELEASE_TAG"
 echo -e "  ${BOLD}Para hacer rollback:${NC} sudo bash setup.sh --rollback"
 echo ""
 if [ "$SSL_OK" = false ]; then
-echo -e "  ${BOLD}${RED}SSL pendiente — ejecutá cuando el DNS propague:${NC}"
-echo -e "    ${YELLOW}certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL --redirect${NC}"
+echo -e "  ${BOLD}${RED}SSL pendiente — ejecutá cuando ambos DNS propaguen:${NC}"
+echo -e "    ${YELLOW}certbot --nginx -d $DOMAIN -d $ORDERS_DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL --redirect${NC}"
 echo ""
 fi
 echo -e "  ${BOLD}Comandos útiles:${NC}"

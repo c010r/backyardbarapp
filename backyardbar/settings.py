@@ -18,6 +18,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8002',
     'http://127.0.0.1:8003',
     'https://menu.backyardbar.fun',
+    'https://pedidos.backyardbar.fun',
 ]
 
 INSTALLED_APPS = [
@@ -27,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'menu',
+    'orders',
 ]
 
 MIDDLEWARE = [
@@ -91,3 +93,12 @@ LOGIN_URL = '/panel/login/'
 LOGIN_REDIRECT_URL = '/panel/'
 
 BAR_NAME = 'Backyard Bar'
+
+# Email (cambiar a SMTP en producción)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@backyardbar.fun'
+
+# Twilio SMS (opcional — dejar vacío para deshabilitar SMS)
+TWILIO_ACCOUNT_SID = ''
+TWILIO_AUTH_TOKEN = ''
+TWILIO_PHONE_NUMBER = ''

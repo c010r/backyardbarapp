@@ -1,0 +1,46 @@
+{% extends "orders/base.html" %}
+{% block title %}Iniciar sesión · {{ config.bar_name }}{% endblock %}
+
+{% block content %}
+<main>
+  <div class="form-card">
+    <h2>Iniciar sesión</h2>
+    <p class="subtitle">Ingresá con tu cuenta para hacer pedidos</p>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <ul class="messages-list">
+          {% for error in form.non_field_errors %}
+            <li class="error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ form.email.value|default:'' }}"
+               placeholder="tu@email.com" autocomplete="email" />
+        {% if form.email.errors %}
+          <p class="error-msg">{{ form.email.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" name="password" placeholder="••••••••" autocomplete="current-password" />
+        {% if form.password.errors %}
+          <p class="error-msg">{{ form.password.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="margin-top:8px;">Ingresar</button>
+    </form>
+
+    <p class="text-center mt-16">
+      ¿No tenés cuenta? <a href="{% url 'orders:register' %}" class="link">Registrate</a>
+    </p>
+  </div>
+</main>
+{% endblock %}

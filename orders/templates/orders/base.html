@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="{{ config.primary_color|default:'#f5a623' }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="{{ config.bar_name }} Pedidos" />
+  <link rel="manifest" href="/static/orders/manifest.json" />
+  <title>{% block title %}{{ config.bar_name }} · Pedidos{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: {{ config.primary_color|default:'#f5a623' }};
+      --secondary: {{ config.secondary_color|default:'#1a1a2e' }};
+      --bg: #0f0f1a;
+      --card: #1a1a2e;
+      --card-hover: #22223a;
+      --text: #e8e8f0;
+      --muted: #888899;
+      --border: rgba(245,166,35,0.2);
+      --danger: #e74c3c;
+      --success: #2ecc71;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .site-header {
+      background: var(--card);
+      border-bottom: 2px solid var(--primary);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .site-header .brand h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      color: var(--primary);
+      letter-spacing: 1px;
+    }
+    .site-header .brand .tagline {
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .site-header .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .site-header .user-name {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .site-header a.logout-btn {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+    .site-header a.logout-btn:hover { color: var(--primary); border-color: var(--primary); }
+
+    main { padding: 20px 16px 100px; max-width: 720px; margin: 0 auto; }
+
+    /* Forms */
+    .form-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      max-width: 460px;
+      margin: 40px auto;
+    }
+    .form-card h2 {
+      font-family: 'Playfair Display', serif;
+      color: var(--primary);
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+    .form-card .subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--primary);
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .radio-group { display: flex; gap: 12px; }
+    .radio-option {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .radio-option:has(input:checked) {
+      border-color: var(--primary);
+      background: rgba(245,166,35,0.08);
+      color: var(--primary);
+    }
+    .radio-option input { display: none; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--secondary);
+      width: 100%;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    .btn-sm { padding: 7px 14px; font-size: 0.82rem; }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.8rem;
+      margin-top: 4px;
+    }
+    .messages-list { list-style: none; margin-bottom: 16px; }
+    .messages-list li {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin-bottom: 8px;
+    }
+    .messages-list .success { background: rgba(46,204,113,0.15); color: var(--success); }
+    .messages-list .error   { background: rgba(231,76,60,0.15); color: var(--danger); }
+    .messages-list .info    { background: rgba(245,166,35,0.12); color: var(--primary); }
+
+    .link { color: var(--primary); text-decoration: none; font-size: 0.85rem; }
+    .link:hover { text-decoration: underline; }
+    .text-center { text-align: center; }
+    .mt-16 { margin-top: 16px; }
+    .mt-8  { margin-top: 8px; }
+
+    {% block extra_styles %}{% endblock %}
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">
+    <h1>{{ config.bar_name }}</h1>
+    {% if config.tagline %}
+      <div class="tagline">{{ config.tagline }}</div>
+    {% else %}
+      <div class="tagline">Pedidos</div>
+    {% endif %}
+  </div>
+  <div class="header-actions">
+    {% if request.user.is_authenticated %}
+      <span class="user-name">{{ request.user.first_name }}</span>
+      <a href="{% url 'orders:logout' %}" class="logout-btn">Salir</a>
+    {% endif %}
+    {% block header_extra %}{% endblock %}
+  </div>
+</header>
+
+{% if messages %}
+  <div style="max-width:720px;margin:12px auto;padding:0 16px;">
+    <ul class="messages-list">
+      {% for msg in messages %}
+        <li class="{{ msg.tags }}">{{ msg }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+<footer style="text-align:center;padding:24px 20px;color:var(--muted);font-size:0.78rem;border-top:1px solid var(--border);">
+  <strong style="color:var(--primary)">{{ config.bar_name }}</strong> &bull; Pedidos online
+</footer>
+
+<script>
+  // Register service worker for PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/orders/sw.js').catch(() => {});
+  }
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

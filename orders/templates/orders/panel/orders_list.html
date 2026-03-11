@@ -1,0 +1,189 @@
+{% extends "orders/base.html" %}
+{% block title %}Panel Pedidos · {{ config.bar_name }}{% endblock %}
+
+{% block extra_styles %}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.panel-header h2 {
+  font-family: 'Playfair Display', serif;
+  color: var(--primary);
+  font-size: 1.5rem;
+}
+.badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 50%;
+  width: 24px; height: 24px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 8px;
+}
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.filter-btn {
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.filter-btn.active, .filter-btn:hover {
+  background: var(--primary);
+  color: var(--secondary);
+  border-color: var(--primary);
+}
+.order-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+}
+.order-card:hover { border-color: var(--primary); }
+.order-card.in-process { border-left: 3px solid var(--primary); }
+.order-card.out-for-delivery { border-left: 3px solid var(--success); }
+.order-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.order-num { font-weight: 700; color: var(--primary); font-size: 1rem; }
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.status-in_process { background: rgba(245,166,35,0.2); color: var(--primary); }
+.status-out_for_delivery { background: rgba(46,204,113,0.2); color: var(--success); }
+.status-delivered { background: rgba(136,136,153,0.2); color: var(--muted); }
+.status-cancelled { background: rgba(231,76,60,0.15); color: var(--danger); }
+.order-customer { font-size: 0.88rem; color: var(--muted); margin-bottom: 6px; }
+.order-items-preview { font-size: 0.82rem; color: var(--text); margin-bottom: 10px; }
+.order-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.order-time { font-size: 0.75rem; color: var(--muted); }
+.order-total { font-weight: 700; color: var(--primary); }
+.quick-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+{% endblock %}
+
+{% block content %}
+<main>
+  <div class="panel-header">
+    <h2>
+      📋 Pedidos
+      {% if pending_count > 0 %}
+        <span class="badge-count">{{ pending_count }}</span>
+      {% endif %}
+    </h2>
+    <span style="font-size:0.82rem;color:var(--muted);">
+      Auto-actualiza cada 15s
+    </span>
+  </div>
+
+  <div class="filter-bar">
+    <a href="{% url 'orders:panel_orders' %}" class="filter-btn {% if not status_filter %}active{% endif %}">
+      Todos
+    </a>
+    {% for value, label in STATUS_CHOICES %}
+      <a href="{% url 'orders:panel_orders' %}?status={{ value }}"
+         class="filter-btn {% if status_filter == value %}active{% endif %}">
+        {{ label }}
+      </a>
+    {% endfor %}
+  </div>
+
+  {% if orders %}
+    {% for order in orders %}
+      <div class="order-card {{ order.status|cut:'_'|lower }}" id="order-{{ order.pk }}">
+        <div class="order-card-header">
+          <span class="order-num">Pedido #{{ order.pk }}</span>
+          <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+        </div>
+        <div class="order-customer">
+          👤 {{ order.customer.full_name }} &nbsp;|&nbsp;
+          📞 {{ order.customer.phone }} &nbsp;|&nbsp;
+          📍 {{ order.customer.full_address }}
+        </div>
+        <div class="order-items-preview">
+          {% for item in order.items.all %}{{ item.quantity }}× {{ item.menu_item.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </div>
+        <div class="order-footer">
+          <div>
+            <span class="order-total">${{ order.total }}</span>
+            <span class="order-time" style="margin-left:10px;">{{ order.created_at|timesince }} atrás</span>
+          </div>
+          <div class="quick-actions">
+            {% if order.status == 'in_process' %}
+              <form method="post" action="{% url 'orders:panel_update_status' order.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="out_for_delivery" />
+                <button type="submit" class="btn btn-sm" style="background:var(--success);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;">
+                  🛵 Salida delivery
+                </button>
+              </form>
+            {% elif order.status == 'out_for_delivery' %}
+              <form method="post" action="{% url 'orders:panel_update_status' order.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="delivered" />
+                <button type="submit" class="btn btn-sm" style="background:var(--muted);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;">
+                  ✅ Entregado
+                </button>
+              </form>
+            {% endif %}
+            <a href="{% url 'orders:panel_order_detail' order.pk %}" class="filter-btn" style="padding:7px 14px;">
+              Ver detalle
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div style="font-size:3rem;margin-bottom:12px;">📭</div>
+      <p>No hay pedidos{% if status_filter %} con ese estado{% endif %}.</p>
+    </div>
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Auto-refresh every 15 seconds
+setTimeout(() => location.reload(), 15000);
+</script>
+{% endblock %}
