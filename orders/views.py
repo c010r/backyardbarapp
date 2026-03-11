@@ -159,7 +159,14 @@ def login_view(request):
         form = LoginForm(request.POST)
         if form.is_valid():
             d = form.cleaned_data
+            # Intentar por username directo, luego buscar por email
             user = authenticate(request, username=d['email'].lower(), password=d['password'])
+            if not user:
+                try:
+                    u = User.objects.get(email__iexact=d['email'])
+                    user = authenticate(request, username=u.username, password=d['password'])
+                except User.DoesNotExist:
+                    pass
             if user:
                 login(request, user)
                 next_url = request.GET.get('next', '')
