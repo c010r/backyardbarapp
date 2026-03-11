@@ -1,59 +1,402 @@
 #!/bin/bash
-# Setup inicial de Backyard Bar - Sistema de Menú QR
+# ============================================================
+#  Backyard Bar - Setup / Deploy / Rollback
+#
+#  Desarrollo local:   bash setup.sh
+#  Producción (VPS):   sudo bash setup.sh
+#  Rollback:           sudo bash setup.sh --rollback
+#
+#  Forzar modo:        bash setup.sh --dev
+#                      sudo bash setup.sh --prod
+# ============================================================
 
-set -e
+set -euo pipefail
 
-echo "========================================"
-echo "  Backyard Bar - Setup del sistema QR   "
-echo "========================================"
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
+info()  { echo -e "${GREEN}[✓]${NC} $1"; }
+warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
+error() { echo -e "${RED}[✗]${NC} $1"; exit 1; }
+step()  { echo -e "\n${BOLD}${YELLOW}── $1${NC}"; }
 
-# Crear y activar entorno virtual
-if [ ! -d "venv" ]; then
-    echo "[1/5] Creando entorno virtual..."
-    python3 -m venv venv
+# ── Detectar modo ────────────────────────────────────────────
+if   [ "${1:-}" = "--dev" ];      then MODE="dev"
+elif [ "${1:-}" = "--prod" ];     then MODE="prod"
+elif [ "${1:-}" = "--rollback" ]; then MODE="rollback"
+elif [ "$EUID" -eq 0 ];          then MODE="prod"
+else                                   MODE="dev"
 fi
 
-echo "[2/5] Activando entorno e instalando dependencias..."
-source venv/bin/activate
-pip install -r requirements.txt --quiet
+[ "$MODE" = "prod"     ] && [ "$EUID" -ne 0 ] && error "Producción requiere root: sudo bash setup.sh"
+[ "$MODE" = "rollback" ] && [ "$EUID" -ne 0 ] && error "Rollback requiere root: sudo bash setup.sh --rollback"
 
-echo "[3/5] Aplicando migraciones..."
-python manage.py makemigrations
-python manage.py migrate
+# ── Configuración producción ─────────────────────────────────
+DOMAIN="menu.backyardbar.fun"
+APP_USER="backyardbar"
+APP_DIR="/var/www/backyardbar"
+REPO_DIR="$APP_DIR/app"
+VENV_DIR="$APP_DIR/venv"
+SOCK="$APP_DIR/gunicorn.sock"
+SERVICE="backyardbar"
+RELEASES_DIR="$APP_DIR/releases"
+KEEP_RELEASES=5
+SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "[4/5] Cargando datos de ejemplo..."
-python manage.py seed_data
-
-echo "[5/5] Creando superusuario admin..."
+# ── Encabezado ───────────────────────────────────────────────
 echo ""
-read -p "  Usuario admin: " DJANGO_SU_NAME
-read -p "  Email (opcional): " DJANGO_SU_EMAIL
-read -s -p "  Contraseña: " DJANGO_SU_PASSWORD
-echo ""
-read -s -p "  Confirmar contraseña: " DJANGO_SU_PASSWORD2
+echo -e "${BOLD}════════════════════════════════════════${NC}"
+case "$MODE" in
+  prod)     echo -e "${BOLD}  Backyard Bar · Deploy producción${NC}" ;;
+  rollback) echo -e "${BOLD}  Backyard Bar · Rollback${NC}" ;;
+  *)        echo -e "${BOLD}  Backyard Bar · Setup desarrollo${NC}" ;;
+esac
+echo -e "${BOLD}════════════════════════════════════════${NC}"
 echo ""
 
-if [ "$DJANGO_SU_PASSWORD" != "$DJANGO_SU_PASSWORD2" ]; then
-    echo "Error: Las contraseñas no coinciden."
-    exit 1
+# ── Credenciales del superusuario (solo en setup/deploy) ─────
+if [ "$MODE" != "rollback" ]; then
+    read -rp  "  Usuario admin: "       DJANGO_SU_NAME
+    read -rp  "  Email (opcional): "    DJANGO_SU_EMAIL
+    read -rs -p "  Contraseña: "        DJANGO_SU_PASSWORD; echo ""
+    read -rs -p "  Confirmar contraseña: " DJANGO_SU_PASSWORD2; echo ""
+    [ "$DJANGO_SU_PASSWORD" != "$DJANGO_SU_PASSWORD2" ] && error "Las contraseñas no coinciden."
 fi
 
-DJANGO_SUPERUSER_USERNAME="$DJANGO_SU_NAME" \
-DJANGO_SUPERUSER_EMAIL="$DJANGO_SU_EMAIL" \
-DJANGO_SUPERUSER_PASSWORD="$DJANGO_SU_PASSWORD" \
-python manage.py createsuperuser --noinput
+# ════════════════════════════════════════════════════════════
+# MODO DESARROLLO LOCAL
+# ════════════════════════════════════════════════════════════
+if [ "$MODE" = "dev" ]; then
+
+    step "1/5  Entorno virtual"
+    [ ! -d "venv" ] && python3 -m venv venv
+    # shellcheck source=/dev/null
+    source venv/bin/activate
+    info "venv activo"
+
+    step "2/5  Instalando dependencias"
+    pip install -r requirements.txt --quiet
+    info "Dependencias instaladas"
+
+    step "3/5  Migraciones"
+    python manage.py makemigrations
+    python manage.py migrate
+    info "Migraciones aplicadas"
+
+    step "4/5  Datos de ejemplo"
+    python manage.py seed_data
+    info "Datos cargados"
+
+    step "5/5  Superusuario"
+    DJANGO_SUPERUSER_USERNAME="$DJANGO_SU_NAME" \
+    DJANGO_SUPERUSER_EMAIL="$DJANGO_SU_EMAIL" \
+    DJANGO_SUPERUSER_PASSWORD="$DJANGO_SU_PASSWORD" \
+    python manage.py createsuperuser --noinput
+    info "Superusuario '$DJANGO_SU_NAME' creado"
+
+    echo ""
+    echo -e "${BOLD}${GREEN}════════════════════════════════════════${NC}"
+    echo -e "${BOLD}${GREEN}  Setup completo!${NC}"
+    echo -e "${BOLD}${GREEN}════════════════════════════════════════${NC}"
+    echo ""
+    echo "  Para iniciar el servidor:"
+    echo "    source venv/bin/activate"
+    echo "    python manage.py runserver 0.0.0.0:8000"
+    echo ""
+    echo "  URLs:"
+    echo "    Menu público:  http://localhost:8000/"
+    echo "    Admin:         http://localhost:8000/admin/"
+    echo "    QR Dashboard:  http://localhost:8000/admin-tools/qr-dashboard/"
+    echo ""
+    exit 0
+fi
+
+# ════════════════════════════════════════════════════════════
+# MODO ROLLBACK
+# ════════════════════════════════════════════════════════════
+if [ "$MODE" = "rollback" ]; then
+
+    mkdir -p "$RELEASES_DIR"
+    LAST_RELEASE=$(ls -1t "$RELEASES_DIR" 2>/dev/null | head -1 || true)
+    [ -z "$LAST_RELEASE" ] && error "No hay releases guardados para hacer rollback."
+
+    step "Rollback a release: $LAST_RELEASE"
+
+    systemctl stop "$SERVICE" 2>/dev/null || true
+
+    if [ -d "$RELEASES_DIR/$LAST_RELEASE/app" ]; then
+        rsync -a --delete \
+          --exclude='db.sqlite3' \
+          "$RELEASES_DIR/$LAST_RELEASE/app/" "$REPO_DIR/"
+        chown -R "$APP_USER:$APP_USER" "$REPO_DIR"
+        info "Código restaurado"
+    else
+        warn "No se encontró snapshot de código para este release."
+    fi
+
+    if [ -f "$RELEASES_DIR/$LAST_RELEASE/db.sqlite3.bak" ]; then
+        cp "$RELEASES_DIR/$LAST_RELEASE/db.sqlite3.bak" "$APP_DIR/db.sqlite3"
+        chown "$APP_USER:$APP_USER" "$APP_DIR/db.sqlite3"
+        info "Base de datos restaurada"
+    else
+        warn "No se encontró backup de BD para este release (se mantiene la actual)."
+    fi
+
+    systemctl start "$SERVICE"
+    sleep 2
+    systemctl is-active --quiet "$SERVICE" \
+      && info "Servicio reiniciado correctamente" \
+      || error "El servicio no inició tras el rollback. Revisá: journalctl -u $SERVICE -n 40"
+
+    echo ""
+    echo -e "${BOLD}${GREEN}  Rollback completado → $LAST_RELEASE${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Releases disponibles:${NC}"
+    ls -1t "$RELEASES_DIR" | head -5 | sed 's/^/    /'
+    echo ""
+    exit 0
+fi
+
+# ════════════════════════════════════════════════════════════
+# MODO PRODUCCIÓN (VPS)
+# ════════════════════════════════════════════════════════════
+
+step "1/10  Actualizando sistema"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get upgrade -y -qq
+apt-get install -y -qq \
+  python3 python3-pip python3-venv python3-dev \
+  nginx certbot python3-certbot-nginx \
+  git curl rsync build-essential \
+  libjpeg-dev zlib1g-dev libfreetype6-dev
+info "Sistema y dependencias instalados"
+
+step "2/10  Configurando usuario del sistema"
+id "$APP_USER" &>/dev/null || useradd -m -s /bin/bash "$APP_USER"
+mkdir -p "$REPO_DIR" "$APP_DIR/media" "$APP_DIR/staticfiles" "$APP_DIR/logs" "$RELEASES_DIR"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+info "Usuario '$APP_USER' y directorios listos"
+
+step "3/10  Guardando snapshot para rollback"
+RELEASE_TAG="$(date +%Y%m%d_%H%M%S)"
+RELEASE_PATH="$RELEASES_DIR/$RELEASE_TAG"
+mkdir -p "$RELEASE_PATH/app"
+
+if [ -d "$REPO_DIR" ] && [ "$(ls -A "$REPO_DIR" 2>/dev/null)" ]; then
+    rsync -a \
+      --exclude='__pycache__' --exclude='*.pyc' --exclude='*.sock' \
+      "$REPO_DIR/" "$RELEASE_PATH/app/"
+    info "Snapshot de código guardado"
+else
+    info "Primera instalación, no hay código previo que respaldar"
+fi
+
+if [ -f "$APP_DIR/db.sqlite3" ]; then
+    cp "$APP_DIR/db.sqlite3" "$RELEASE_PATH/db.sqlite3.bak"
+    info "Backup de BD guardado"
+else
+    info "Primera instalación, no hay BD previa que respaldar"
+fi
+
+# Limpiar releases viejos (mantener los últimos KEEP_RELEASES)
+RELEASE_COUNT=$(ls -1t "$RELEASES_DIR" | wc -l)
+if [ "$RELEASE_COUNT" -gt "$KEEP_RELEASES" ]; then
+    ls -1t "$RELEASES_DIR" | tail -n +"$((KEEP_RELEASES + 1))" | \
+      xargs -I{} rm -rf "$RELEASES_DIR/{}"
+    info "Releases antiguos eliminados (se conservan $KEEP_RELEASES)"
+fi
+
+step "4/10  Copiando código"
+rsync -a --delete \
+  --exclude='venv' --exclude='__pycache__' --exclude='*.pyc' \
+  --exclude='.git' --exclude='db.sqlite3' --exclude='media' \
+  --exclude='staticfiles' --exclude='*.sock' --exclude='releases' \
+  "$SOURCE_DIR/" "$REPO_DIR/"
+chown -R "$APP_USER:$APP_USER" "$REPO_DIR"
+info "Código copiado a $REPO_DIR"
+
+step "5/10  Instalando dependencias Python"
+sudo -u "$APP_USER" python3 -m venv "$VENV_DIR"
+sudo -u "$APP_USER" "$VENV_DIR/bin/pip" install --upgrade pip -q
+sudo -u "$APP_USER" "$VENV_DIR/bin/pip" install -r "$REPO_DIR/requirements.txt" -q
+sudo -u "$APP_USER" "$VENV_DIR/bin/pip" install gunicorn -q
+info "Virtualenv listo en $VENV_DIR"
+
+step "6/10  Configurando Django para producción"
+SECRET_KEY=$(python3 -c "
+import secrets, string
+chars = string.ascii_letters + string.digits + '!@#%^&*-_=+'
+print(''.join(secrets.choice(chars) for _ in range(50)))
+")
+
+cat > "$REPO_DIR/backyardbar/settings_prod.py" << PYEOF
+from .settings import *
+
+DEBUG = False
+SECRET_KEY = '${SECRET_KEY}'
+ALLOWED_HOSTS = ['${DOMAIN}', 'www.${DOMAIN}']
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': '${APP_DIR}/db.sqlite3',
+    }
+}
+
+STATIC_ROOT  = '${APP_DIR}/staticfiles'
+MEDIA_ROOT   = '${APP_DIR}/media'
+MEDIA_URL    = '/media/'
+STATIC_URL   = '/static/'
+
+CSRF_TRUSTED_ORIGINS = ['https://${DOMAIN}', 'http://${DOMAIN}']
+
+SECURE_BROWSER_XSS_FILTER  = True
+X_FRAME_OPTIONS             = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+PYEOF
+
+chown "$APP_USER:$APP_USER" "$REPO_DIR/backyardbar/settings_prod.py"
+info "settings_prod.py generado"
+
+sudo -u "$APP_USER" env DJANGO_SETTINGS_MODULE=backyardbar.settings_prod \
+  "$VENV_DIR/bin/python" "$REPO_DIR/manage.py" migrate --noinput
+info "Migraciones aplicadas"
+
+sudo -u "$APP_USER" env DJANGO_SETTINGS_MODULE=backyardbar.settings_prod \
+  "$VENV_DIR/bin/python" "$REPO_DIR/manage.py" seed_data 2>/dev/null || true
+info "Datos de ejemplo cargados"
+
+sudo -u "$APP_USER" env DJANGO_SETTINGS_MODULE=backyardbar.settings_prod \
+  "$VENV_DIR/bin/python" "$REPO_DIR/manage.py" collectstatic --noinput -v 0
+info "Archivos estáticos recolectados"
+
+step "7/10  Creando superusuario"
+sudo -u "$APP_USER" env \
+  DJANGO_SETTINGS_MODULE=backyardbar.settings_prod \
+  DJANGO_SUPERUSER_USERNAME="$DJANGO_SU_NAME" \
+  DJANGO_SUPERUSER_EMAIL="$DJANGO_SU_EMAIL" \
+  DJANGO_SUPERUSER_PASSWORD="$DJANGO_SU_PASSWORD" \
+  "$VENV_DIR/bin/python" "$REPO_DIR/manage.py" createsuperuser --noinput 2>/dev/null \
+  || warn "El superusuario ya existe, se omite."
+info "Superusuario '$DJANGO_SU_NAME' listo"
+
+step "8/10  Configurando Gunicorn"
+cat > "/etc/systemd/system/${SERVICE}.service" << SVCEOF
+[Unit]
+Description=Gunicorn · Backyard Bar
+After=network.target
+
+[Service]
+User=${APP_USER}
+Group=${APP_USER}
+WorkingDirectory=${REPO_DIR}
+Environment="DJANGO_SETTINGS_MODULE=backyardbar.settings_prod"
+ExecStart=${VENV_DIR}/bin/gunicorn \\
+    --workers 3 \\
+    --bind unix:${SOCK} \\
+    --timeout 120 \\
+    --access-logfile ${APP_DIR}/logs/gunicorn_access.log \\
+    --error-logfile  ${APP_DIR}/logs/gunicorn_error.log \\
+    backyardbar.wsgi:application
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+systemctl daemon-reload
+systemctl enable "$SERVICE"
+systemctl restart "$SERVICE"
+sleep 2
+
+systemctl is-active --quiet "$SERVICE" \
+  && info "Gunicorn corriendo" \
+  || error "Gunicorn no inició. Revisá: journalctl -u $SERVICE -n 40"
+
+step "9/10  Configurando Nginx"
+cat > "/etc/nginx/sites-available/$DOMAIN" << NGEOF
+server {
+    listen 80;
+    server_name ${DOMAIN} www.${DOMAIN};
+
+    client_max_body_size 20M;
+
+    access_log ${APP_DIR}/logs/nginx_access.log;
+    error_log  ${APP_DIR}/logs/nginx_error.log;
+
+    location /static/ {
+        alias ${APP_DIR}/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /media/ {
+        alias ${APP_DIR}/media/;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    location / {
+        proxy_pass         http://unix:${SOCK};
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_redirect     off;
+        proxy_read_timeout 120;
+    }
+}
+NGEOF
+
+ln -sf "/etc/nginx/sites-available/$DOMAIN" "/etc/nginx/sites-enabled/$DOMAIN"
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+info "Nginx configurado"
+
+step "10/10  Instalando SSL (Let's Encrypt)"
+SSL_EMAIL="${DJANGO_SU_EMAIL:-admin@${DOMAIN}}"
+if certbot --nginx \
+      -d "$DOMAIN" \
+      --non-interactive \
+      --agree-tos \
+      --email "$SSL_EMAIL" \
+      --redirect \
+      2>&1 | grep -q "Congratulations\|Certificate not yet due"; then
+  info "SSL instalado correctamente"
+else
+  warn "SSL no pudo instalarse (posiblemente el DNS aún no propagó)."
+  warn "Ejecutá esto cuando el DNS esté listo:"
+  warn "  certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL --redirect"
+fi
+
+systemctl enable certbot.timer 2>/dev/null || true
+
+sudo -u "$APP_USER" env DJANGO_SETTINGS_MODULE=backyardbar.settings_prod \
+  "$VENV_DIR/bin/python" "$REPO_DIR/manage.py" shell << PYEOF 2>/dev/null || true
+from menu.models import SiteConfig
+c = SiteConfig.get_config()
+c.base_url = 'https://${DOMAIN}'
+c.save()
+PYEOF
+info "URL base del QR actualizada a https://${DOMAIN}"
 
 echo ""
-echo "========================================"
-echo "  Setup completo!"
-echo "========================================"
+echo -e "${BOLD}${GREEN}╔═══════════════════════════════════════════════╗"
+echo -e "║       Backyard Bar · Deploy completado        ║"
+echo -e "╚═══════════════════════════════════════════════╝${NC}"
 echo ""
-echo "Para iniciar el servidor:"
-echo "  source venv/bin/activate"
-echo "  python manage.py runserver 0.0.0.0:8000"
+echo -e "  Menú público:    ${GREEN}https://${DOMAIN}/${NC}"
+echo -e "  Panel de gestión:${GREEN}https://${DOMAIN}/panel/login/${NC}"
 echo ""
-echo "URLs:"
-echo "  Menu publico:  http://localhost:8000/"
-echo "  Admin:         http://localhost:8000/admin/"
-echo "  QR Dashboard:  http://localhost:8000/admin-tools/qr-dashboard/"
+echo -e "  ${BOLD}Credenciales del panel:${NC}"
+echo -e "    Usuario: ${YELLOW}${DJANGO_SU_NAME}${NC}"
+echo ""
+echo -e "  ${BOLD}Snapshot guardado:${NC} $RELEASE_TAG"
+echo -e "  ${BOLD}Para hacer rollback:${NC} sudo bash setup.sh --rollback"
+echo ""
+echo -e "  ${BOLD}Comandos útiles:${NC}"
+echo -e "    systemctl status  ${SERVICE}"
+echo -e "    systemctl restart ${SERVICE}"
+echo -e "    journalctl -u ${SERVICE} -f"
+echo -e "    tail -f ${APP_DIR}/logs/gunicorn_error.log"
 echo ""
