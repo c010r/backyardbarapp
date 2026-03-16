@@ -6,7 +6,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 import json
-from .models import Category, MenuItem, Table, SiteConfig, Order, OrderItem
+from django.db import models
+from .models import Category, MenuItem, Table, SiteConfig, Order, OrderItem, BarSale, BarSaleItem
 from .forms import CategoryForm, MenuItemForm, TableForm, SiteConfigForm
 
 
@@ -356,3 +357,90 @@ def panel_orders_json(request):
         'preparing': Order.objects.filter(status=Order.STATUS_PREPARING).count(),
         'ready':     Order.objects.filter(status=Order.STATUS_READY).count(),
     }})
+
+
+# ─────────────────────────────────────────
+#  BARRA — POS
+# ─────────────────────────────────────────
+
+@login_required
+def bar_pos(request):
+    categories = Category.objects.filter(is_active=True).prefetch_related(
+        models.Prefetch('items', queryset=MenuItem.objects.filter(is_available=True))
+    )
+    return render(request, 'menu/panel/bar_pos.html', {
+        'config': SiteConfig.get_config(),
+        'categories': categories,
+    })
+
+
+@login_required
+@require_POST
+def bar_checkout(request):
+    try:
+        data    = json.loads(request.body)
+        items   = data.get('items', [])
+        payment = data.get('payment', 'cash')
+        notes   = data.get('notes', '').strip()
+        if not items:
+            return JsonResponse({'ok': False, 'error': 'Carrito vacío.'}, status=400)
+
+        sale = BarSale.objects.create(
+            payment_method=payment,
+            notes=notes,
+            created_by=request.user.username,
+        )
+        total = 0
+        for entry in items:
+            item = get_object_or_404(MenuItem, pk=entry['id'], is_available=True)
+            qty  = int(entry['qty'])
+            BarSaleItem.objects.create(sale=sale, menu_item=item, quantity=qty, unit_price=item.price)
+            total += item.price * qty
+        sale.total = total
+        sale.save()
+        return JsonResponse({'ok': True, 'ticket_number': sale.ticket_number, 'sale_id': sale.pk})
+    except (ValueError, KeyError) as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+
+
+@login_required
+def bar_ticket(request, pk):
+    sale = get_object_or_404(BarSale, pk=pk)
+    return render(request, 'menu/panel/bar_ticket.html', {
+        'config': SiteConfig.get_config(),
+        'sale': sale,
+    })
+
+
+@login_required
+@require_POST
+def bar_deliver(request, pk):
+    sale = get_object_or_404(BarSale, pk=pk)
+    sale.status = BarSale.STATUS_DELIVERED
+    sale.save()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def bar_history(request):
+    from django.utils import timezone as tz
+    from datetime import timedelta
+    date_filter = request.GET.get('fecha', 'today')
+    now = tz.localtime()
+    if date_filter == 'today':
+        sales = BarSale.objects.filter(created_at__date=now.date())
+    elif date_filter == 'week':
+        sales = BarSale.objects.filter(created_at__gte=now - timedelta(days=7))
+    else:
+        sales = BarSale.objects.all()
+
+    sales = sales.prefetch_related('items__menu_item')
+    total_day = sum(s.total for s in sales)
+
+    return render(request, 'menu/panel/bar_history.html', {
+        'config': SiteConfig.get_config(),
+        'sales': sales,
+        'total_day': total_day,
+        'date_filter': date_filter,
+        'pending_count': BarSale.objects.filter(status=BarSale.STATUS_PENDING).count(),
+    })

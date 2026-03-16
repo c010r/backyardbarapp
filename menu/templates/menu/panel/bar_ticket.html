@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ticket #{{ sale.ticket_number }} — {{ config.bar_name }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #f5f5f0;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .ticket {
+      background: white;
+      width: 300px;
+      border-radius: 4px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+      overflow: hidden;
+    }
+
+    /* Borde superior con colores del bar */
+    .ticket-top {
+      background: #1a1a2e;
+      color: #f5a623;
+      text-align: center;
+      padding: 18px 16px 14px;
+    }
+    .ticket-top .bar-name {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .ticket-top .bar-tagline {
+      font-size: 0.65rem;
+      opacity: 0.7;
+      letter-spacing: 3px;
+      margin-top: 2px;
+    }
+
+    /* Número de ticket */
+    .ticket-number-section {
+      background: #f5a623;
+      color: #1a1a2e;
+      text-align: center;
+      padding: 14px;
+    }
+    .ticket-number-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    .ticket-number {
+      font-size: 3.5rem;
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -1px;
+    }
+
+    /* Cuerpo */
+    .ticket-body { padding: 16px; }
+
+    .ticket-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: #666;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed #ddd;
+    }
+
+    .ticket-items { margin-bottom: 12px; }
+    .ticket-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 5px 0;
+      font-size: 0.82rem;
+      border-bottom: 1px dotted #eee;
+    }
+    .ticket-item:last-child { border-bottom: none; }
+    .item-left { display: flex; gap: 6px; align-items: baseline; }
+    .item-qty  { font-weight: 800; color: #1a1a2e; min-width: 20px; }
+    .item-name { color: #333; }
+    .item-price { color: #666; font-size: 0.75rem; }
+
+    .ticket-total {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1rem;
+      font-weight: 800;
+      padding: 10px 0 8px;
+      border-top: 2px dashed #ddd;
+      margin-top: 4px;
+    }
+
+    .ticket-payment {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #888;
+      padding: 6px 0 10px;
+    }
+
+    {% if sale.notes %}
+    .ticket-notes {
+      background: #fffbe6;
+      border: 1px solid #f5a623;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 0.75rem;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    .ticket-notes strong { color: #1a1a2e; }
+    {% endif %}
+
+    .ticket-footer {
+      background: #f9f9f9;
+      border-top: 1px dashed #ddd;
+      text-align: center;
+      padding: 12px;
+      font-size: 0.65rem;
+      color: #999;
+      letter-spacing: 1px;
+    }
+
+    /* Zigzag inferior */
+    .zigzag {
+      height: 10px;
+      background: linear-gradient(135deg, white 25%, transparent 25%) -10px 0,
+                  linear-gradient(225deg, white 25%, transparent 25%) -10px 0,
+                  linear-gradient(315deg, white 25%, transparent 25%),
+                  linear-gradient( 45deg, white 25%, transparent 25%);
+      background-size: 20px 20px;
+      background-color: #f5f5f0;
+    }
+
+    /* Estado */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+    .status-pending  { background: #fff3d0; color: #b8750a; border: 1px solid #f5c842; }
+    .status-delivered { background: #d4f0e0; color: #1a6b3c; border: 1px solid #4caf7d; }
+
+    /* Botones (no se imprimen) */
+    .no-print {
+      display: flex; gap: 10px; justify-content: center;
+      margin-top: 20px;
+    }
+    .print-btn {
+      padding: 10px 24px; border-radius: 8px; border: none;
+      font-size: 0.9rem; font-weight: 700; cursor: pointer;
+    }
+    .print-btn-primary { background: #1a1a2e; color: #f5a623; }
+    .print-btn-secondary { background: #eee; color: #333; }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .ticket { box-shadow: none; width: 100%; max-width: 300px; margin: 0 auto; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div>
+  <div class="ticket">
+    <div class="ticket-top">
+      <div class="bar-name">{{ config.bar_name }}</div>
+      {% if config.tagline %}
+        <div class="bar-tagline">{{ config.tagline }}</div>
+      {% endif %}
+    </div>
+
+    <div class="ticket-number-section">
+      <div class="ticket-number-label">N° de Ticket</div>
+      <div class="ticket-number">#{{ sale.ticket_number|stringformat:"03d" }}</div>
+    </div>
+
+    <div class="ticket-body">
+      <div style="text-align:center;margin-bottom:10px;">
+        <span class="status-badge status-{{ sale.status }}">
+          {% if sale.status == 'pending' %}⏳ Pendiente de entrega{% else %}✅ Entregado{% endif %}
+        </span>
+      </div>
+
+      <div class="ticket-meta">
+        <span>{{ sale.created_at|date:"d/m/Y" }}</span>
+        <span>{{ sale.created_at|time:"H:i" }}</span>
+        <span>
+          {% if sale.payment_method == 'cash' %}💵 Efectivo
+          {% elif sale.payment_method == 'card' %}💳 Tarjeta
+          {% else %}📲 Transferencia{% endif %}
+        </span>
+      </div>
+
+      <div class="ticket-items">
+        {% for item in sale.items.all %}
+          <div class="ticket-item">
+            <div class="item-left">
+              <span class="item-qty">{{ item.quantity }}×</span>
+              <span class="item-name">{{ item.menu_item.name }}</span>
+            </div>
+            <span class="item-price">${{ item.subtotal }}</span>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="ticket-total">
+        <span>TOTAL</span>
+        <span>${{ sale.total }}</span>
+      </div>
+
+      <div class="ticket-payment">
+        Pagado con
+        {% if sale.payment_method == 'cash' %}efectivo
+        {% elif sale.payment_method == 'card' %}tarjeta
+        {% else %}transferencia{% endif %}
+      </div>
+
+      {% if sale.notes %}
+        <div class="ticket-notes">
+          <strong>Nota:</strong> {{ sale.notes }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="zigzag"></div>
+
+    <div class="ticket-footer">
+      Presentar este ticket en la barra<br>
+      para retirar tus productos
+    </div>
+  </div>
+
+  <!-- Botones de acción (no se imprimen) -->
+  <div class="no-print">
+    <button class="print-btn print-btn-primary" onclick="window.print()">🖨 Imprimir</button>
+    <button class="print-btn print-btn-secondary" onclick="window.close()">Cerrar</button>
+    {% if sale.status == 'pending' %}
+      <button class="print-btn" onclick="markDelivered()"
+        style="background:#4caf7d;color:white;">
+        ✅ Marcar entregado
+      </button>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  async function markDelivered() {
+    const res = await fetch("{% url 'menu:bar_deliver' sale.pk %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    });
+    const data = await res.json();
+    if (data.ok) location.reload();
+  }
+  // Imprimir automáticamente al abrir
+  window.addEventListener('load', () => setTimeout(() => window.print(), 400));
+</script>
+</body>
+</html>

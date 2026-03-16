@@ -39,7 +39,7 @@ urlpatterns = [
     # Configuración
     path('panel/configuracion/', views.panel_config, name='panel_config'),
 
-    # Pedidos — Panel
+    # Comandas
     path('panel/comandas/', views.panel_orders, name='panel_orders'),
     path('panel/comandas/json/', views.panel_orders_json, name='panel_orders_json'),
     path('panel/comandas/<int:pk>/estado/', views.panel_order_status, name='panel_order_status'),
@@ -47,4 +47,11 @@ urlpatterns = [
     # Pedidos — Cliente
     path('menu/<int:table_number>/pedir/', views.place_order, name='place_order'),
     path('pedido/<int:order_id>/estado/', views.order_status, name='order_status'),
+
+    # Barra — POS
+    path('panel/barra/', views.bar_pos, name='bar_pos'),
+    path('panel/barra/cobrar/', views.bar_checkout, name='bar_checkout'),
+    path('panel/barra/ticket/<int:pk>/', views.bar_ticket, name='bar_ticket'),
+    path('panel/barra/ticket/<int:pk>/entregar/', views.bar_deliver, name='bar_deliver'),
+    path('panel/barra/historial/', views.bar_history, name='bar_history'),
 ]

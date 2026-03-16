@@ -150,6 +150,59 @@ class OrderItem(models.Model):
         return self.unit_price * self.quantity
 
 
+class BarSale(models.Model):
+    PAYMENT_CASH = 'cash'
+    PAYMENT_CARD = 'card'
+    PAYMENT_TRANSFER = 'transfer'
+    PAYMENT_CHOICES = [
+        (PAYMENT_CASH,     'Efectivo'),
+        (PAYMENT_CARD,     'Tarjeta'),
+        (PAYMENT_TRANSFER, 'Transferencia'),
+    ]
+
+    STATUS_PENDING   = 'pending'
+    STATUS_DELIVERED = 'delivered'
+    STATUS_CHOICES = [
+        (STATUS_PENDING,   'Pendiente'),
+        (STATUS_DELIVERED, 'Entregado'),
+    ]
+
+    ticket_number  = models.PositiveIntegerField('Nº Ticket', unique=True, editable=False)
+    payment_method = models.CharField('Medio de pago', max_length=20, choices=PAYMENT_CHOICES, default=PAYMENT_CASH)
+    status         = models.CharField('Estado', max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    total          = models.DecimalField('Total', max_digits=10, decimal_places=2, default=0)
+    notes          = models.TextField('Notas', blank=True)
+    created_at     = models.DateTimeField('Fecha', auto_now_add=True)
+    created_by     = models.CharField('Cobrado por', max_length=100, blank=True)
+
+    class Meta:
+        verbose_name = 'Venta en barra'
+        verbose_name_plural = 'Ventas en barra'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Ticket #{self.ticket_number}'
+
+    def save(self, *args, **kwargs):
+        if not self.ticket_number:
+            last = BarSale.objects.order_by('ticket_number').last()
+            self.ticket_number = (last.ticket_number + 1) if last else 1
+        super().save(*args, **kwargs)
+
+
+class BarSaleItem(models.Model):
+    sale       = models.ForeignKey(BarSale, on_delete=models.CASCADE, related_name='items')
+    menu_item  = models.ForeignKey(MenuItem, on_delete=models.PROTECT, verbose_name='Producto')
+    quantity   = models.PositiveIntegerField('Cantidad', default=1)
+    unit_price = models.DecimalField('Precio unitario', max_digits=8, decimal_places=2)
+
+    def subtotal(self):
+        return self.unit_price * self.quantity
+
+    def __str__(self):
+        return f'{self.quantity}x {self.menu_item.name}'
+
+
 class SiteConfig(models.Model):
     bar_name = models.CharField('Nombre del bar', max_length=100, default='Backyard Bar')
     tagline = models.CharField('Eslogan', max_length=200, blank=True)

@@ -1,0 +1,326 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}Cobrar en Barra{% endblock %}
+{% block page_title %}Cobrar en Barra{% endblock %}
+{% block nav_bar %}active{% endblock %}
+
+{% block content %}
+<style>
+  .pos-layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 16px;
+    height: calc(100vh - 130px);
+  }
+
+  /* Panel productos */
+  .products-panel { display: flex; flex-direction: column; overflow: hidden; }
+  .cat-tabs {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .cat-tab {
+    padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 0.82rem;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .cat-tab:hover, .cat-tab.active {
+    background: var(--primary); color: var(--secondary); border-color: var(--primary);
+  }
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    overflow-y: auto;
+    padding-right: 4px;
+    flex: 1;
+  }
+  .product-btn {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 12px; cursor: pointer; text-align: center;
+    transition: all 0.15s; display: flex; flex-direction: column;
+    align-items: center; gap: 6px;
+  }
+  .product-btn:hover { border-color: var(--primary); background: var(--card-hover); transform: translateY(-1px); }
+  .product-btn:active { transform: scale(0.97); }
+  .product-btn .p-icon { font-size: 1.8rem; }
+  .product-btn .p-name { font-size: 0.82rem; font-weight: 600; line-height: 1.3; }
+  .product-btn .p-price { font-size: 0.9rem; font-weight: 700; color: var(--primary); }
+  .product-btn.unavailable { opacity: 0.35; pointer-events: none; }
+
+  /* Panel cobro */
+  .checkout-panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .checkout-header {
+    padding: 16px 18px 12px; border-bottom: 1px solid var(--border);
+    font-weight: 700; font-size: 1rem; display: flex; justify-content: space-between; align-items: center;
+  }
+  .checkout-items { flex: 1; overflow-y: auto; padding: 10px 0; }
+  .checkout-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .checkout-item:last-child { border-bottom: none; }
+  .ci-name { flex: 1; font-size: 0.88rem; font-weight: 500; }
+  .ci-price { font-size: 0.78rem; color: var(--muted); }
+  .ci-qty-ctrl { display: flex; align-items: center; gap: 6px; }
+  .ci-btn {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--primary); font-size: 1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: background 0.1s;
+  }
+  .ci-btn:hover { background: rgba(245,166,35,0.15); }
+  .ci-qty { font-weight: 700; min-width: 20px; text-align: center; font-size: 0.9rem; }
+  .ci-subtotal { font-weight: 600; color: var(--primary); min-width: 60px; text-align: right; font-size: 0.88rem; }
+  .checkout-empty { text-align: center; padding: 30px; color: var(--muted); font-size: 0.85rem; }
+
+  .checkout-footer { padding: 14px 18px; border-top: 1px solid var(--border); }
+  .total-row {
+    display: flex; justify-content: space-between;
+    font-size: 1.3rem; font-weight: 700; margin-bottom: 14px;
+  }
+  .total-row span { color: var(--primary); }
+
+  .payment-methods { display: flex; gap: 8px; margin-bottom: 14px; }
+  .pay-btn {
+    flex: 1; padding: 9px 6px; border-radius: 8px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; text-align: center; transition: all 0.15s;
+  }
+  .pay-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .pay-btn.selected { background: rgba(245,166,35,0.15); border-color: var(--primary); color: var(--primary); }
+
+  .notes-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; color: var(--text);
+    font-size: 0.82rem; resize: none; margin-bottom: 12px; font-family: inherit;
+  }
+  .notes-input:focus { outline: none; border-color: var(--primary); }
+
+  .btn-charge {
+    width: 100%; padding: 14px; background: var(--primary); color: var(--secondary);
+    border: none; border-radius: 10px; font-size: 1rem; font-weight: 800;
+    cursor: pointer; transition: opacity 0.15s; letter-spacing: 0.5px;
+  }
+  .btn-charge:hover { opacity: 0.88; }
+  .btn-charge:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-clear {
+    background: none; border: none; color: var(--danger); font-size: 0.78rem;
+    cursor: pointer; padding: 2px 4px;
+  }
+  .btn-clear:hover { text-decoration: underline; }
+
+  @media (max-width: 900px) {
+    .pos-layout { grid-template-columns: 1fr; height: auto; }
+    .products-grid { max-height: 45vh; }
+    .checkout-panel { min-height: 400px; }
+  }
+</style>
+
+<div class="pos-layout">
+
+  <!-- PRODUCTOS -->
+  <div class="products-panel">
+    <div class="cat-tabs" id="catTabs">
+      <button class="cat-tab active" data-cat="all" onclick="filterCat('all', this)">
+        Todos
+      </button>
+      {% for cat in categories %}
+        <button class="cat-tab" data-cat="{{ cat.pk }}" onclick="filterCat('{{ cat.pk }}', this)">
+          {{ cat.icon }} {{ cat.name }}
+        </button>
+      {% endfor %}
+    </div>
+
+    <div class="products-grid" id="productsGrid">
+      {% for cat in categories %}
+        {% for item in cat.items.all %}
+          <button class="product-btn {% if not item.is_available %}unavailable{% endif %}"
+                  data-cat="{{ cat.pk }}"
+                  data-id="{{ item.pk }}"
+                  data-name="{{ item.name|escapejs }}"
+                  data-price="{{ item.price }}"
+                  data-icon="{{ cat.icon }}"
+                  onclick="addItem(this)">
+            <div class="p-icon">{{ cat.icon }}</div>
+            <div class="p-name">{{ item.name }}</div>
+            <div class="p-price">${{ item.price }}</div>
+          </button>
+        {% endfor %}
+      {% empty %}
+        <p style="color:var(--muted);grid-column:1/-1;padding:20px;">No hay productos disponibles.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- COBRO -->
+  <div class="checkout-panel">
+    <div class="checkout-header">
+      <span>Ticket de venta</span>
+      <button class="btn-clear" onclick="clearCart()">Limpiar</button>
+    </div>
+
+    <div class="checkout-items" id="checkoutItems">
+      <div class="checkout-empty">Seleccioná productos del menú</div>
+    </div>
+
+    <div class="checkout-footer">
+      <div class="total-row">
+        <span style="color:var(--text);font-size:1rem;font-weight:600;">Total</span>
+        <span id="totalDisplay">$0</span>
+      </div>
+
+      <div class="payment-methods">
+        <button class="pay-btn selected" data-pay="cash" onclick="selectPay('cash', this)">💵 Efectivo</button>
+        <button class="pay-btn" data-pay="card" onclick="selectPay('card', this)">💳 Tarjeta</button>
+        <button class="pay-btn" data-pay="transfer" onclick="selectPay('transfer', this)">📲 Transfer.</button>
+      </div>
+
+      <textarea class="notes-input" id="saleNotes" rows="2" placeholder="Aclaraciones (opcional)"></textarea>
+
+      <button class="btn-charge" id="btnCharge" onclick="processPayment()" disabled>
+        Cobrar y emitir ticket
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay ticket -->
+<div id="ticketOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border-radius:16px;padding:28px;max-width:340px;width:90%;text-align:center;">
+    <div style="font-size:3rem;margin-bottom:12px;">🎟️</div>
+    <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;">Ticket emitido</div>
+    <div style="font-size:3.5rem;font-weight:800;color:var(--primary);margin:8px 0;" id="overlayTicketNum">—</div>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:20px;">Presentar en la barra para retirar</p>
+    <div style="display:flex;gap:10px;">
+      <button onclick="printTicket()" style="flex:1;padding:11px;background:var(--primary);color:var(--secondary);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">
+        🖨 Imprimir
+      </button>
+      <button onclick="closeOverlay()" style="flex:1;padding:11px;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:0.9rem;">
+        Nuevo cobro
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CHECKOUT_URL = "{% url 'menu:bar_checkout' %}";
+  const TICKET_URL   = "/panel/barra/ticket/{id}/";
+  const CSRF_TOKEN   = "{{ csrf_token }}";
+
+  let cart = {};
+  let payMethod = 'cash';
+  let currentSaleId = null;
+
+  function filterCat(cat, btn) {
+    document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.product-btn').forEach(p => {
+      p.style.display = (cat === 'all' || p.dataset.cat === cat) ? '' : 'none';
+    });
+  }
+
+  function addItem(btn) {
+    const id = btn.dataset.id;
+    if (cart[id]) {
+      cart[id].qty++;
+    } else {
+      cart[id] = { name: btn.dataset.name, price: parseFloat(btn.dataset.price), qty: 1, icon: btn.dataset.icon };
+    }
+    btn.classList.add('pop');
+    setTimeout(() => btn.classList.remove('pop'), 200);
+    renderCart();
+  }
+
+  function changeQty(id, delta) {
+    if (!cart[id]) return;
+    cart[id].qty += delta;
+    if (cart[id].qty <= 0) delete cart[id];
+    renderCart();
+  }
+
+  function clearCart() {
+    cart = {};
+    renderCart();
+  }
+
+  function renderCart() {
+    const keys = Object.keys(cart);
+    const total = keys.reduce((s, k) => s + cart[k].qty * cart[k].price, 0);
+    document.getElementById('totalDisplay').textContent = '$' + total.toLocaleString('es-AR');
+    document.getElementById('btnCharge').disabled = keys.length === 0;
+
+    const container = document.getElementById('checkoutItems');
+    if (!keys.length) {
+      container.innerHTML = '<div class="checkout-empty">Seleccioná productos del menú</div>';
+      return;
+    }
+    container.innerHTML = keys.map(id => {
+      const item = cart[id];
+      return `
+        <div class="checkout-item">
+          <span style="font-size:1.2rem;">${item.icon}</span>
+          <div style="flex:1;min-width:0;">
+            <div class="ci-name">${item.name}</div>
+            <div class="ci-price">$${item.price.toLocaleString('es-AR')} c/u</div>
+          </div>
+          <div class="ci-qty-ctrl">
+            <button class="ci-btn" onclick="changeQty('${id}', -1)">−</button>
+            <span class="ci-qty">${item.qty}</span>
+            <button class="ci-btn" onclick="changeQty('${id}', 1)">+</button>
+          </div>
+          <div class="ci-subtotal">$${(item.qty * item.price).toLocaleString('es-AR')}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function selectPay(method, btn) {
+    payMethod = method;
+    document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+
+  async function processPayment() {
+    const btn = document.getElementById('btnCharge');
+    btn.disabled = true;
+    btn.textContent = 'Procesando...';
+
+    const items = Object.entries(cart).map(([id, v]) => ({ id: parseInt(id), qty: v.qty }));
+    const notes = document.getElementById('saleNotes').value;
+
+    try {
+      const res = await fetch(CHECKOUT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({ items, payment: payMethod, notes }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        currentSaleId = data.sale_id;
+        document.getElementById('overlayTicketNum').textContent = '#' + String(data.ticket_number).padStart(3, '0');
+        document.getElementById('ticketOverlay').style.display = 'flex';
+        clearCart();
+        document.getElementById('saleNotes').value = '';
+      } else {
+        alert(data.error || 'Error al procesar.');
+      }
+    } catch {
+      alert('Error de red.');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Cobrar y emitir ticket';
+  }
+
+  function printTicket() {
+    if (currentSaleId) window.open(TICKET_URL.replace('{id}', currentSaleId), '_blank');
+  }
+
+  function closeOverlay() {
+    document.getElementById('ticketOverlay').style.display = 'none';
+    currentSaleId = null;
+  }
+</script>
+{% endblock %}

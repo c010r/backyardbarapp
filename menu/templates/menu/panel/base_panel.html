@@ -187,6 +187,12 @@
     <a href="{% url 'menu:panel_orders' %}" class="nav-link {% block nav_orders %}{% endblock %}">
       <span class="icon">📋</span><span>Comandas</span>
     </a>
+    <a href="{% url 'menu:bar_pos' %}" class="nav-link {% block nav_bar %}{% endblock %}">
+      <span class="icon">🍺</span><span>Cobrar en barra</span>
+    </a>
+    <a href="{% url 'menu:bar_history' %}" class="nav-link {% block nav_bar_history %}{% endblock %}">
+      <span class="icon">🧾</span><span>Historial ventas</span>
+    </a>
 
     <div class="nav-section">QR</div>
     <a href="{% url 'menu:panel_tables' %}" class="nav-link {% block nav_tables %}{% endblock %}">
