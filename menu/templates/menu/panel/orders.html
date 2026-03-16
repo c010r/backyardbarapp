@@ -1,0 +1,226 @@
+{% extends "menu/panel/base_panel.html" %}
+{% block title %}Comandas{% endblock %}
+{% block page_title %}Comandas{% endblock %}
+
+{% block content %}
+<style>
+  .orders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .order-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .order-card.new       { border-top: 3px solid #f5a623; }
+  .order-card.preparing { border-top: 3px solid #4a9eff; }
+  .order-card.ready     { border-top: 3px solid #4caf7d; }
+  .order-card.delivered { border-top: 3px solid #555; opacity: 0.7; }
+  .order-card.cancelled { border-top: 3px solid #e05252; opacity: 0.6; }
+
+  .order-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px;
+  }
+  .order-id { font-size: 0.72rem; color: var(--muted); }
+  .order-table { font-weight: 700; font-size: 1rem; }
+  .order-time { font-size: 0.72rem; color: var(--muted); }
+  .status-pill {
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px;
+  }
+  .order-items { padding: 0 16px 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .order-item-row {
+    display: flex; justify-content: space-between;
+    font-size: 0.85rem; padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .order-item-row:last-child { border-bottom: none; }
+  .order-qty { color: var(--primary); font-weight: 700; margin-right: 6px; }
+  .order-notes {
+    margin: 8px 16px; padding: 8px 12px;
+    background: rgba(245,166,35,0.06); border-radius: 8px;
+    font-size: 0.78rem; color: var(--muted); font-style: italic;
+  }
+  .order-total {
+    display: flex; justify-content: space-between;
+    padding: 10px 16px; border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .order-total strong { color: var(--primary); font-size: 1rem; }
+  .order-actions {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    padding: 10px 16px 14px;
+  }
+  .status-btn {
+    flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text); font-size: 0.75rem; cursor: pointer;
+    transition: all 0.15s; text-align: center; font-weight: 500;
+  }
+  .status-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .status-btn.active-status { background: var(--primary); color: var(--secondary); border-color: var(--primary); font-weight: 700; }
+
+  /* Filtros */
+  .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+  .filter-btn {
+    padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 0.82rem;
+    cursor: pointer; text-decoration: none; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--primary); color: var(--secondary); border-color: var(--primary); }
+  .count-badge {
+    background: var(--secondary); color: var(--primary);
+    border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem;
+    display: inline-flex; align-items: center; justify-content: center; font-weight: 800;
+  }
+
+  /* Contador cabecera */
+  .stats-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-pill {
+    padding: 8px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .stat-new       { background: rgba(245,166,35,0.12); color: #f5a623; border: 1px solid rgba(245,166,35,0.25); }
+  .stat-preparing { background: rgba(74,158,255,0.12); color: #4a9eff; border: 1px solid rgba(74,158,255,0.25); }
+  .stat-ready     { background: rgba(76,175,125,0.12); color: #4caf7d; border: 1px solid rgba(76,175,125,0.25); }
+
+  .empty-orders { text-align: center; padding: 60px 20px; color: var(--muted); grid-column: 1/-1; }
+
+  /* Auto-refresh indicator */
+  .refresh-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #4caf7d;
+    display: inline-block; margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+</style>
+
+<!-- Stats bar -->
+<div class="stats-bar" id="statsBar">
+  <div class="stat-pill stat-new">🟡 Nuevos: <strong id="countNew">{{ counts.new }}</strong></div>
+  <div class="stat-pill stat-preparing">🔵 En prep.: <strong id="countPrep">{{ counts.preparing }}</strong></div>
+  <div class="stat-pill stat-ready">🟢 Listos: <strong id="countReady">{{ counts.ready }}</strong></div>
+  <div style="margin-left:auto;font-size:0.75rem;color:var(--muted);display:flex;align-items:center;">
+    <span class="refresh-dot"></span> Actualización automática
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="filter-bar">
+  <a href="?status=active"    class="filter-btn {% if status_filter == 'active'    %}active{% endif %}">Activos</a>
+  <a href="?status=new"       class="filter-btn {% if status_filter == 'new'       %}active{% endif %}">🟡 Nuevos</a>
+  <a href="?status=preparing" class="filter-btn {% if status_filter == 'preparing' %}active{% endif %}">🔵 En preparación</a>
+  <a href="?status=ready"     class="filter-btn {% if status_filter == 'ready'     %}active{% endif %}">🟢 Listos</a>
+  <a href="?status=delivered" class="filter-btn {% if status_filter == 'delivered' %}active{% endif %}">✅ Entregados</a>
+  <a href="?status=all"       class="filter-btn {% if status_filter == 'all'       %}active{% endif %}">Todos</a>
+</div>
+
+<!-- Grilla de comandas -->
+<div class="orders-grid" id="ordersGrid">
+  {% for order in orders %}
+  <div class="order-card {{ order.status }}" id="order-{{ order.pk }}">
+    <div class="order-head">
+      <div>
+        <div class="order-id">#{{ order.pk }}</div>
+        <div class="order-table">{{ order.table }}</div>
+      </div>
+      <div style="text-align:right;">
+        <div>
+          <span class="status-pill"
+            style="background:{{ order.get_status_color }}22;color:{{ order.get_status_color }};border:1px solid {{ order.get_status_color }}44;">
+            {{ order.get_status_display }}
+          </span>
+        </div>
+        <div class="order-time" style="margin-top:4px;">{{ order.created_at|time:"H:i" }}</div>
+      </div>
+    </div>
+
+    <div class="order-items">
+      {% for item in order.items.all %}
+      <div class="order-item-row">
+        <span><span class="order-qty">{{ item.quantity }}×</span>{{ item.menu_item.name }}</span>
+        <span style="color:var(--muted);">${{ item.subtotal }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if order.notes %}
+    <div class="order-notes">💬 {{ order.notes }}</div>
+    {% endif %}
+
+    <div class="order-total">
+      <span>Total</span>
+      <strong>${{ order.get_total }}</strong>
+    </div>
+
+    <div class="order-actions">
+      {% for status_val, status_label in status_choices %}
+        {% if status_val != 'cancelled' %}
+        <form method="post" action="{% url 'menu:panel_order_status' order.pk %}" style="flex:1;min-width:0;">
+          {% csrf_token %}
+          <input type="hidden" name="status" value="{{ status_val }}" />
+          <button type="submit"
+            class="status-btn {% if order.status == status_val %}active-status{% endif %}">
+            {{ status_label }}
+          </button>
+        </form>
+        {% endif %}
+      {% endfor %}
+      <form method="post" action="{% url 'menu:panel_order_status' order.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="status" value="cancelled" />
+        <button type="submit" class="status-btn" style="color:var(--danger);border-color:rgba(224,82,82,0.3);">✕</button>
+      </form>
+    </div>
+  </div>
+  {% empty %}
+  <div class="empty-orders">
+    <div style="font-size:3rem;margin-bottom:14px;">📋</div>
+    <p>No hay comandas activas.</p>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  const JSON_URL = "{% url 'menu:panel_orders_json' %}";
+  let lastNewCount = {{ counts.new }};
+  let audioCtx = null;
+
+  function beep() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.frequency.value = 880; gain.gain.value = 0.3;
+      osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+    } catch {}
+  }
+
+  async function refresh() {
+    try {
+      const res  = await fetch(JSON_URL);
+      const data = await res.json();
+
+      // Actualizar contadores
+      document.getElementById('countNew').textContent  = data.counts.new;
+      document.getElementById('countPrep').textContent = data.counts.preparing;
+      document.getElementById('countReady').textContent = data.counts.ready;
+
+      // Alerta sonora si llegó una comanda nueva
+      if (data.counts.new > lastNewCount) beep();
+      lastNewCount = data.counts.new;
+
+    } catch {}
+  }
+
+  // Actualizar cada 8 segundos
+  setInterval(refresh, 8000);
+</script>
+{% endblock %}

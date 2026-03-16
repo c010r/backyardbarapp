@@ -2,7 +2,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Category, MenuItem, Table, SiteConfig
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.utils import timezone
+import json
+from .models import Category, MenuItem, Table, SiteConfig, Order, OrderItem
 from .forms import CategoryForm, MenuItemForm, TableForm, SiteConfigForm
 
 
@@ -245,3 +249,110 @@ def panel_config(request):
         'config': config,
         'form': form,
     })
+
+
+# ─────────────────────────────────────────
+#  PEDIDOS — CLIENTE
+# ─────────────────────────────────────────
+
+@require_POST
+def place_order(request, table_number):
+    table = get_object_or_404(Table, number=table_number, is_active=True)
+    try:
+        data = json.loads(request.body)
+        items = data.get('items', [])
+        notes = data.get('notes', '').strip()
+        if not items:
+            return JsonResponse({'ok': False, 'error': 'El carrito está vacío.'}, status=400)
+
+        order = Order.objects.create(table=table, notes=notes)
+        for entry in items:
+            menu_item = get_object_or_404(MenuItem, pk=entry['id'], is_available=True)
+            OrderItem.objects.create(
+                order=order,
+                menu_item=menu_item,
+                quantity=int(entry['qty']),
+                unit_price=menu_item.price,
+            )
+        return JsonResponse({'ok': True, 'order_id': order.pk})
+    except (ValueError, KeyError):
+        return JsonResponse({'ok': False, 'error': 'Pedido inválido.'}, status=400)
+
+
+def order_status(request, order_id):
+    order = get_object_or_404(Order, pk=order_id)
+    return JsonResponse({
+        'status': order.status,
+        'label': order.get_status_display(),
+        'color': order.get_status_color(),
+    })
+
+
+# ─────────────────────────────────────────
+#  PEDIDOS — PANEL
+# ─────────────────────────────────────────
+
+@login_required
+def panel_orders(request):
+    status_filter = request.GET.get('status', 'active')
+    if status_filter == 'active':
+        orders = Order.objects.exclude(
+            status__in=[Order.STATUS_DELIVERED, Order.STATUS_CANCELLED]
+        ).prefetch_related('items__menu_item').select_related('table')
+    elif status_filter == 'all':
+        orders = Order.objects.prefetch_related('items__menu_item').select_related('table')
+    else:
+        orders = Order.objects.filter(
+            status=status_filter
+        ).prefetch_related('items__menu_item').select_related('table')
+
+    return render(request, 'menu/panel/orders.html', {
+        'config': SiteConfig.get_config(),
+        'orders': orders,
+        'status_filter': status_filter,
+        'status_choices': Order.STATUS_CHOICES,
+        'counts': {
+            'new':       Order.objects.filter(status=Order.STATUS_NEW).count(),
+            'preparing': Order.objects.filter(status=Order.STATUS_PREPARING).count(),
+            'ready':     Order.objects.filter(status=Order.STATUS_READY).count(),
+        },
+    })
+
+
+@login_required
+@require_POST
+def panel_order_status(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+    new_status = request.POST.get('status')
+    valid = [s[0] for s in Order.STATUS_CHOICES]
+    if new_status in valid:
+        order.status = new_status
+        order.save()
+    return redirect(request.META.get('HTTP_REFERER', 'menu:panel_orders'))
+
+
+@login_required
+def panel_orders_json(request):
+    """Endpoint para polling de nuevos pedidos."""
+    orders = Order.objects.exclude(
+        status__in=[Order.STATUS_DELIVERED, Order.STATUS_CANCELLED]
+    ).prefetch_related('items__menu_item').select_related('table').order_by('-created_at')
+
+    data = []
+    for o in orders:
+        data.append({
+            'id': o.pk,
+            'table': str(o.table),
+            'status': o.status,
+            'label': o.get_status_display(),
+            'color': o.get_status_color(),
+            'total': str(o.get_total()),
+            'notes': o.notes,
+            'created_at': o.created_at.strftime('%H:%M'),
+            'items': [{'name': i.menu_item.name, 'qty': i.quantity, 'price': str(i.unit_price)} for i in o.items.all()],
+        })
+    return JsonResponse({'orders': data, 'counts': {
+        'new':       Order.objects.filter(status=Order.STATUS_NEW).count(),
+        'preparing': Order.objects.filter(status=Order.STATUS_PREPARING).count(),
+        'ready':     Order.objects.filter(status=Order.STATUS_READY).count(),
+    }})

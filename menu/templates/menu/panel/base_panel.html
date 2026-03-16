@@ -183,6 +183,11 @@
       <span class="icon">🍽️</span><span>Items</span>
     </a>
 
+    <div class="nav-section">Operación</div>
+    <a href="{% url 'menu:panel_orders' %}" class="nav-link {% block nav_orders %}{% endblock %}">
+      <span class="icon">📋</span><span>Comandas</span>
+    </a>
+
     <div class="nav-section">QR</div>
     <a href="{% url 'menu:panel_tables' %}" class="nav-link {% block nav_tables %}{% endblock %}">
       <span class="icon">🪑</span><span>Mesas y QR</span>

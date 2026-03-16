@@ -91,6 +91,65 @@ class Table(models.Model):
         self.qr_code.save(filename, ContentFile(buffer.getvalue()), save=True)
 
 
+class Order(models.Model):
+    STATUS_NEW        = 'new'
+    STATUS_PREPARING  = 'preparing'
+    STATUS_READY      = 'ready'
+    STATUS_DELIVERED  = 'delivered'
+    STATUS_CANCELLED  = 'cancelled'
+
+    STATUS_CHOICES = [
+        (STATUS_NEW,       '🟡 Nuevo'),
+        (STATUS_PREPARING, '🔵 En preparación'),
+        (STATUS_READY,     '🟢 Listo'),
+        (STATUS_DELIVERED, '✅ Entregado'),
+        (STATUS_CANCELLED, '❌ Cancelado'),
+    ]
+
+    table      = models.ForeignKey(Table, on_delete=models.PROTECT, related_name='orders', verbose_name='Mesa')
+    status     = models.CharField('Estado', max_length=20, choices=STATUS_CHOICES, default=STATUS_NEW)
+    notes      = models.TextField('Notas del cliente', blank=True)
+    created_at = models.DateTimeField('Creado', auto_now_add=True)
+    updated_at = models.DateTimeField('Actualizado', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Pedido'
+        verbose_name_plural = 'Pedidos'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Pedido #{self.pk} — {self.table} — {self.get_status_display()}'
+
+    def get_total(self):
+        return sum(i.subtotal() for i in self.items.all())
+
+    def get_status_color(self):
+        return {
+            self.STATUS_NEW:       '#f5a623',
+            self.STATUS_PREPARING: '#4a9eff',
+            self.STATUS_READY:     '#4caf7d',
+            self.STATUS_DELIVERED: '#888',
+            self.STATUS_CANCELLED: '#e05252',
+        }.get(self.status, '#888')
+
+
+class OrderItem(models.Model):
+    order     = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.PROTECT, verbose_name='Item')
+    quantity  = models.PositiveIntegerField('Cantidad', default=1)
+    unit_price = models.DecimalField('Precio unitario', max_digits=8, decimal_places=2)
+
+    class Meta:
+        verbose_name = 'Item del pedido'
+        verbose_name_plural = 'Items del pedido'
+
+    def __str__(self):
+        return f'{self.quantity}x {self.menu_item.name}'
+
+    def subtotal(self):
+        return self.unit_price * self.quantity
+
+
 class SiteConfig(models.Model):
     bar_name = models.CharField('Nombre del bar', max_length=100, default='Backyard Bar')
     tagline = models.CharField('Eslogan', max_length=200, blank=True)

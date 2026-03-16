@@ -38,4 +38,13 @@ urlpatterns = [
 
     # Configuración
     path('panel/configuracion/', views.panel_config, name='panel_config'),
+
+    # Pedidos — Panel
+    path('panel/comandas/', views.panel_orders, name='panel_orders'),
+    path('panel/comandas/json/', views.panel_orders_json, name='panel_orders_json'),
+    path('panel/comandas/<int:pk>/estado/', views.panel_order_status, name='panel_order_status'),
+
+    # Pedidos — Cliente
+    path('menu/<int:table_number>/pedir/', views.place_order, name='place_order'),
+    path('pedido/<int:order_id>/estado/', views.order_status, name='order_status'),
 ]

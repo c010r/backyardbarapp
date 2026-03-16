@@ -8,22 +8,27 @@
   <div class="menu-item-info">
     <div class="menu-item-name">
       {{ item.name }}
-      {% if show_badge and item.is_featured %}
-        <span class="badge-featured">Destacado</span>
-      {% endif %}
+      {% if show_badge and item.is_featured %}<span class="badge-featured">Destacado</span>{% endif %}
     </div>
     {% if item.description %}
       <div class="menu-item-desc">{{ item.description }}</div>
     {% endif %}
     <div class="menu-item-footer">
       <span class="menu-item-price">${{ item.price }}</span>
-      {% if item.get_tags_list %}
-        <div class="tags">
-          {% for tag in item.get_tags_list %}
-            <span class="tag">{{ tag }}</span>
-          {% endfor %}
-        </div>
-      {% endif %}
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        {% if item.get_tags_list %}
+          <div class="tags">
+            {% for tag in item.get_tags_list %}<span class="tag">{{ tag }}</span>{% endfor %}
+          </div>
+        {% endif %}
+        {% if table %}
+          <button
+            class="add-btn"
+            onclick="addToCart({{ item.pk }}, '{{ item.name|escapejs }}', {{ item.price }}, '{{ item.category.icon }}'); this.classList.add('pop'); setTimeout(()=>this.classList.remove('pop'),200)">
+            + Agregar
+          </button>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>

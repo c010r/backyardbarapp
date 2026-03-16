@@ -1,11 +1,124 @@
 {% extends "menu/base.html" %}
 
-{% block title %}
-  Menú - {{ config.bar_name }}{% if table %} | {{ table.get_display_name }}{% endif %}
+{% block extra_styles %}
+/* CARRITO */
+.cart-fab {
+  position: fixed; bottom: 24px; right: 20px; z-index: 200;
+  background: var(--primary); color: var(--secondary);
+  border: none; border-radius: 50px; padding: 14px 22px;
+  font-size: 0.95rem; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 4px 20px rgba(245,166,35,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+  transform: translateY(100px); opacity: 0;
+}
+.cart-fab.visible { transform: translateY(0); opacity: 1; }
+.cart-fab:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(245,166,35,0.5); }
+.cart-fab .cart-count {
+  background: var(--secondary); color: var(--primary);
+  border-radius: 50%; width: 22px; height: 22px;
+  font-size: 0.75rem; display: flex; align-items: center; justify-content: center; font-weight: 800;
+}
+
+/* OVERLAY */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.overlay.open { opacity: 1; pointer-events: all; }
+
+/* CARRITO DRAWER */
+.cart-drawer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #1a1a2e; border-radius: 20px 20px 0 0;
+  border-top: 2px solid var(--primary);
+  z-index: 400; padding: 0 0 30px;
+  max-height: 85vh; display: flex; flex-direction: column;
+  transform: translateY(100%); transition: transform 0.3s cubic-bezier(.32,.72,0,1);
+}
+.cart-drawer.open { transform: translateY(0); }
+.cart-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px; border-bottom: 1px solid rgba(245,166,35,0.15);
+  flex-shrink: 0;
+}
+.cart-header h2 { font-size: 1.1rem; font-weight: 700; }
+.cart-close { background: none; border: none; color: #888; font-size: 1.4rem; cursor: pointer; padding: 4px; }
+.cart-items { overflow-y: auto; flex: 1; padding: 12px 0; }
+.cart-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.cart-item:last-child { border-bottom: none; }
+.cart-item-icon { font-size: 1.5rem; width: 36px; text-align: center; flex-shrink: 0; }
+.cart-item-info { flex: 1; min-width: 0; }
+.cart-item-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-item-price { font-size: 0.78rem; color: var(--muted); }
+.qty-control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.qty-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(245,166,35,0.3);
+  background: transparent; color: var(--primary); font-size: 1rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.qty-btn:hover { background: rgba(245,166,35,0.15); }
+.qty-num { font-size: 0.9rem; font-weight: 700; min-width: 18px; text-align: center; }
+.cart-empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.9rem; }
+
+.cart-footer { padding: 16px 20px 0; flex-shrink: 0; }
+.cart-notes {
+  width: 100%; background: #0f0f1a; border: 1px solid rgba(245,166,35,0.2);
+  border-radius: 10px; padding: 10px 14px; color: var(--text);
+  font-size: 0.85rem; resize: none; margin-bottom: 14px; font-family: inherit;
+}
+.cart-notes:focus { outline: none; border-color: var(--primary); }
+.cart-total { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 0.9rem; }
+.cart-total strong { font-size: 1.2rem; color: var(--primary); }
+.btn-order {
+  width: 100%; padding: 15px; background: var(--primary); color: var(--secondary);
+  border: none; border-radius: 12px; font-size: 1rem; font-weight: 700;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.btn-order:hover { opacity: 0.88; }
+.btn-order:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #1a1a2e; border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 20px; font-size: 0.85rem; z-index: 500;
+  opacity: 0; transition: all 0.25s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: rgba(76,175,125,0.4); color: #6dd4a0; }
+.toast.error { border-color: rgba(224,82,82,0.4); color: #f08080; }
+
+/* CONFIRMACIÓN */
+.confirm-screen {
+  position: fixed; inset: 0; background: #0f0f1a; z-index: 600;
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: 30px;
+}
+.confirm-screen.show { display: flex; }
+.confirm-icon { font-size: 4rem; margin-bottom: 16px; }
+.confirm-screen h2 { font-size: 1.5rem; color: var(--primary); margin-bottom: 8px; }
+.confirm-screen p { color: var(--muted); font-size: 0.9rem; margin-bottom: 6px; }
+.confirm-status {
+  margin-top: 24px; padding: 12px 24px; border-radius: 30px;
+  font-weight: 700; font-size: 0.9rem; letter-spacing: 0.5px;
+}
+.btn-back-menu {
+  margin-top: 20px; background: transparent; border: 1px solid var(--border);
+  color: var(--text); border-radius: 10px; padding: 10px 24px;
+  font-size: 0.85rem; cursor: pointer;
+}
+
+/* ADD ANIMATION */
+@keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.25)} 100%{transform:scale(1)} }
+.pop { animation: pop 0.2s ease; }
 {% endblock %}
 
 {% block content %}
-<!-- Navegación de categorías -->
 <nav class="cat-nav">
   <a href="{% if table %}{% url 'menu:menu_table' table.number %}{% else %}{% url 'menu:menu_home' %}{% endif %}"
      class="cat-btn {% if not active_category %}active{% endif %}">
@@ -14,65 +127,245 @@
   {% for cat in categories %}
     <a href="{% if table %}{% url 'menu:menu_table_category' table.number cat.pk %}{% else %}{% url 'menu:menu_category' cat.pk %}{% endif %}"
        class="cat-btn {% if active_category.pk == cat.pk %}active{% endif %}">
-      <span class="icon">{{ cat.icon }}</span>
-      {{ cat.name }}
+      <span class="icon">{{ cat.icon }}</span> {{ cat.name }}
     </a>
   {% endfor %}
 </nav>
 
 <main>
   {% if active_category %}
-    <!-- Vista de categoría específica -->
-    <h2 class="section-title">
-      {{ active_category.icon }} {{ active_category.name }}
-    </h2>
+    <h2 class="section-title">{{ active_category.icon }} {{ active_category.name }}</h2>
     {% if active_category.description %}
-      <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 16px;">
-        {{ active_category.description }}
-      </p>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">{{ active_category.description }}</p>
     {% endif %}
-
     <div class="items-grid">
       {% for item in items %}
         {% include "menu/partials/item_card.html" with item=item %}
       {% empty %}
-        <div class="empty-state">
-          <div class="icon">😔</div>
-          <p>No hay items disponibles en esta categoría.</p>
-        </div>
+        <div class="empty-state"><div class="icon">😔</div><p>No hay items disponibles.</p></div>
       {% endfor %}
     </div>
-
   {% else %}
-    <!-- Vista completa del menú -->
     {% if featured %}
       <h2 class="section-title">⭐ Destacados</h2>
       <div class="items-grid">
-        {% for item in featured %}
-          {% include "menu/partials/item_card.html" with item=item show_badge=True %}
-        {% endfor %}
+        {% for item in featured %}{% include "menu/partials/item_card.html" with item=item show_badge=True %}{% endfor %}
       </div>
     {% endif %}
-
     {% for category in categories %}
-      {% with items=category.items.all %}
-        {% if items %}
-          <h2 class="section-title">{{ category.icon }} {{ category.name }}</h2>
-          <div class="items-grid">
-            {% for item in items %}
-              {% if item.is_available %}
-                {% include "menu/partials/item_card.html" with item=item %}
-              {% endif %}
-            {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
+      {% with cat_items=category.items.all %}{% if cat_items %}
+        <h2 class="section-title">{{ category.icon }} {{ category.name }}</h2>
+        <div class="items-grid">
+          {% for item in cat_items %}
+            {% if item.is_available %}{% include "menu/partials/item_card.html" with item=item %}{% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}{% endwith %}
     {% empty %}
-      <div class="empty-state">
-        <div class="icon">🍺</div>
-        <p>El menú está siendo preparado.<br>Volvé pronto.</p>
-      </div>
+      <div class="empty-state"><div class="icon">🍺</div><p>El menú está siendo preparado.</p></div>
     {% endfor %}
   {% endif %}
 </main>
+
+{% if table %}
+<!-- FAB Carrito -->
+<button class="cart-fab" id="cartFab" onclick="openCart()">
+  🛒 Ver pedido
+  <span class="cart-count" id="cartCount">0</span>
+</button>
+
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closeCart()"></div>
+
+<!-- Drawer carrito -->
+<div class="cart-drawer" id="cartDrawer">
+  <div class="cart-header">
+    <h2>Tu pedido</h2>
+    <button class="cart-close" onclick="closeCart()">✕</button>
+  </div>
+  <div class="cart-items" id="cartItems">
+    <div class="cart-empty">Tu carrito está vacío.<br>Agregá items del menú.</div>
+  </div>
+  <div class="cart-footer">
+    <textarea class="cart-notes" id="cartNotes" rows="2" placeholder="Aclaraciones: sin sal, sin hielo, alergia... (opcional)"></textarea>
+    <div class="cart-total">
+      <span>Total</span>
+      <strong id="cartTotal">$0</strong>
+    </div>
+    <button class="btn-order" id="btnOrder" onclick="sendOrder()" disabled>
+      Enviar pedido a la mesa
+    </button>
+  </div>
+</div>
+
+<!-- Pantalla de confirmación -->
+<div class="confirm-screen" id="confirmScreen">
+  <div class="confirm-icon">🎉</div>
+  <h2>¡Pedido enviado!</h2>
+  <p>{{ table.get_display_name }}</p>
+  <p id="confirmOrderId" style="font-size:0.75rem;margin-top:4px;"></p>
+  <div class="confirm-status" id="confirmStatus"></div>
+  <button class="btn-back-menu" onclick="backToMenu()">← Volver al menú</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const TABLE_NUMBER = {{ table.number }};
+  const ORDER_URL    = "{% url 'menu:place_order' table.number %}";
+  const STATUS_URL   = "/pedido/{id}/estado/";
+  const CSRF_TOKEN   = "{{ csrf_token }}";
+
+  let cart = JSON.parse(sessionStorage.getItem('cart_{{ table.number }}') || '{}');
+  let currentOrderId = null;
+  let statusInterval = null;
+
+  // ─── Renderizar carrito ───────────────────────
+  function saveCart() {
+    sessionStorage.setItem('cart_{{ table.number }}', JSON.stringify(cart));
+    renderCart();
+  }
+
+  function renderCart() {
+    const keys = Object.keys(cart);
+    const count = keys.reduce((s, k) => s + cart[k].qty, 0);
+    const total = keys.reduce((s, k) => s + cart[k].qty * cart[k].price, 0);
+
+    document.getElementById('cartCount').textContent = count;
+    document.getElementById('cartTotal').textContent = '$' + total.toLocaleString('es-AR');
+    document.getElementById('btnOrder').disabled = count === 0;
+
+    const fab = document.getElementById('cartFab');
+    count > 0 ? fab.classList.add('visible') : fab.classList.remove('visible');
+
+    const container = document.getElementById('cartItems');
+    if (keys.length === 0) {
+      container.innerHTML = '<div class="cart-empty">Tu carrito está vacío.<br>Agregá items del menú.</div>';
+      return;
+    }
+    container.innerHTML = keys.map(id => {
+      const item = cart[id];
+      return `
+        <div class="cart-item">
+          <div class="cart-item-icon">${item.icon}</div>
+          <div class="cart-item-info">
+            <div class="cart-item-name">${item.name}</div>
+            <div class="cart-item-price">$${(item.price * item.qty).toLocaleString('es-AR')}</div>
+          </div>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty(${id}, -1)">−</button>
+            <span class="qty-num">${item.qty}</span>
+            <button class="qty-btn" onclick="changeQty(${id}, 1)">+</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function addToCart(id, name, price, icon) {
+    if (cart[id]) {
+      cart[id].qty++;
+    } else {
+      cart[id] = { name, price, qty: 1, icon };
+    }
+    saveCart();
+    showToast('+ ' + name, 'success');
+  }
+
+  function changeQty(id, delta) {
+    if (!cart[id]) return;
+    cart[id].qty += delta;
+    if (cart[id].qty <= 0) delete cart[id];
+    saveCart();
+  }
+
+  // ─── Drawer ───────────────────────────────────
+  function openCart()  {
+    document.getElementById('cartDrawer').classList.add('open');
+    document.getElementById('overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeCart() {
+    document.getElementById('cartDrawer').classList.remove('open');
+    document.getElementById('overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // ─── Enviar pedido ────────────────────────────
+  async function sendOrder() {
+    const btn = document.getElementById('btnOrder');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    const items = Object.entries(cart).map(([id, v]) => ({ id: parseInt(id), qty: v.qty }));
+    const notes = document.getElementById('cartNotes').value;
+
+    try {
+      const res = await fetch(ORDER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({ items, notes }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        cart = {};
+        saveCart();
+        closeCart();
+        currentOrderId = data.order_id;
+        showConfirm(data.order_id);
+      } else {
+        showToast(data.error || 'Error al enviar.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Enviar pedido a la mesa';
+      }
+    } catch {
+      showToast('Error de red. Intentá de nuevo.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Enviar pedido a la mesa';
+    }
+  }
+
+  // ─── Confirmación + polling estado ───────────
+  function showConfirm(orderId) {
+    document.getElementById('confirmOrderId').textContent = 'Pedido #' + orderId;
+    document.getElementById('confirmScreen').classList.add('show');
+    pollStatus(orderId);
+    statusInterval = setInterval(() => pollStatus(orderId), 6000);
+  }
+
+  async function pollStatus(orderId) {
+    try {
+      const res  = await fetch(STATUS_URL.replace('{id}', orderId));
+      const data = await res.json();
+      const el   = document.getElementById('confirmStatus');
+      el.textContent = data.label;
+      el.style.background = data.color + '22';
+      el.style.color = data.color;
+      el.style.border = '1px solid ' + data.color + '55';
+      if (data.status === 'delivered' || data.status === 'cancelled') {
+        clearInterval(statusInterval);
+      }
+    } catch {}
+  }
+
+  function backToMenu() {
+    clearInterval(statusInterval);
+    document.getElementById('confirmScreen').classList.remove('show');
+    document.getElementById('cartNotes').value = '';
+    renderCart();
+  }
+
+  // ─── Toast ────────────────────────────────────
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  // Init
+  renderCart();
+</script>
+{% endif %}
+
 {% endblock %}
